@@ -1,0 +1,22 @@
+{
+  "name": "guiapi",
+  "version": "0.0.1",
+  "description": "guiapi is a package to build interactive multi page web applications",
+  "main": "guiapi.js",
+  "directories": {
+    "example": "examples"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mbertschler/guiapi.git"
+  },
+  "author": "Martin Bertschler @mbertschler",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/mbertschler/guiapi/issues"
+  },
+  "homepage": "https://github.com/mbertschler/guiapi#readme"
+}
