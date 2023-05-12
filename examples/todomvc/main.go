@@ -1,11 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
-	"github.com/evanw/esbuild/pkg/cli"
+	"github.com/mbertschler/guiapi"
 )
 
 type App struct {
@@ -21,9 +20,11 @@ func NewApp() *App {
 }
 
 func main() {
-	err := buildBrowserAssets()
-	if err != nil {
-		log.Fatal(err)
+	if guiapi.EsbuildAvailable() {
+		err := guiapi.BuildAssets()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	app := NewApp()
@@ -36,24 +37,8 @@ func main() {
 	app.Server.Static("/dist/", "./dist")
 
 	log.Println("listening on localhost:8000")
-	err = http.ListenAndServe("localhost:8000", app.Server.Handler())
+	err := http.ListenAndServe("localhost:8000", app.Server.Handler())
 	if err != nil {
 		log.Fatal(err)
 	}
-}
-
-func buildBrowserAssets() error {
-	log.Println("building browser assets")
-	options := []string{
-		"js/main.js",
-		"--bundle",
-		"--outfile=dist/bundle.js",
-		"--minify",
-		"--sourcemap",
-	}
-	returnCode := cli.Run(options)
-	if returnCode != 0 {
-		return fmt.Errorf("esbuild failed with code %d", returnCode)
-	}
-	return nil
 }

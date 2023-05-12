@@ -5,7 +5,6 @@ go 1.20
 replace github.com/mbertschler/guiapi => ../../
 
 require (
-	github.com/evanw/esbuild v0.17.16
 	github.com/gin-gonic/gin v1.9.0
 	github.com/mbertschler/blocks v1.0.1-0.20230507175603-88b8665a5719
 	github.com/mbertschler/guiapi v0.0.0
@@ -14,6 +13,7 @@ require (
 require (
 	github.com/bytedance/sonic v1.8.0 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
+	github.com/evanw/esbuild v0.17.16 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect

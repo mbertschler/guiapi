@@ -3,6 +3,7 @@ module github.com/mbertschler/guiapi
 go 1.20
 
 require (
+	github.com/evanw/esbuild v0.17.18
 	github.com/gin-gonic/gin v1.9.0
 	github.com/mbertschler/blocks v1.0.1-0.20230507175603-88b8665a5719
 )

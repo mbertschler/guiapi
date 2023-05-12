@@ -1,7 +1,7 @@
-import "../css/main.css"
+import guiapi from "guiapi"
 
 import TodoList from "./todolist.js"
-import guiapi from "guiapi"
+import "../css/main.css"
 
 guiapi.registerFunctions(TodoList)
 guiapi.setupGuiapi({ debug: true })
