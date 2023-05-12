@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"log"
 	"net/http"
 
@@ -19,13 +20,10 @@ func NewApp() *App {
 	return app
 }
 
+//go:embed dist/*
+var distFS embed.FS
+
 func main() {
-	if guiapi.EsbuildAvailable() {
-		err := guiapi.BuildAssets()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
 
 	app := NewApp()
 	counter := &Counter{App: app}
@@ -34,7 +32,15 @@ func main() {
 
 	registerTodoList(app.Server, app.DB)
 
-	app.Server.Static("/dist/", "./dist")
+	if guiapi.EsbuildAvailable() {
+		err := guiapi.BuildAssets()
+		if err != nil {
+			log.Fatal(err)
+		}
+		app.Server.Static("/dist/", "./dist")
+	} else {
+		app.Server.engine.StaticFileFS("/dist/", "/dist/", http.FS(distFS))
+	}
 
 	log.Println("listening on localhost:8000")
 	err := http.ListenAndServe("localhost:8000", app.Server.Handler())
