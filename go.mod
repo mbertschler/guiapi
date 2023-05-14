@@ -1,6 +1,6 @@
 module github.com/mbertschler/guiapi
 
-go 1.20
+go 1.18
 
 require (
 	github.com/evanw/esbuild v0.17.18

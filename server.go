@@ -52,6 +52,9 @@ func (s *Server) RegisterComponent(c Component) {
 	for name, fn := range config.Actions {
 		s.SetFunc(config.Name+"."+name, fn)
 	}
+	for path, fn := range config.Pages {
+		s.Page(path, fn)
+	}
 }
 
 func (s *Server) RegisterPage(path string, fn PageFunc) {

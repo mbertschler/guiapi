@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/mbertschler/guiapi"
 )
@@ -26,25 +27,35 @@ var distEmbedFS embed.FS
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	if len(os.Args) > 1 && os.Args[1] == "build" {
+		err := guiapi.BuildAssets()
+		if err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
 	app := NewApp()
 	app.Server.SessionMiddleware(app.DB.sessionMiddleware)
 
-	app.Server.RegisterComponent(&Counter{App: app})
+	app.Server.RegisterComponent(&Counter{DB: app.DB})
 	app.Server.RegisterComponent(&TodoList{DB: app.DB})
 
+	var dist fs.FS = distEmbedFS
 	if guiapi.EsbuildAvailable() {
 		err := guiapi.BuildAssets()
 		if err != nil {
 			log.Fatal(err)
 		}
-		app.Server.StaticDir("/dist/", "./dist")
+		dist = os.DirFS("dist")
 	} else {
-		fs, err := fs.Sub(distEmbedFS, "dist")
+		var err error
+		dist, err = fs.Sub(dist, "dist")
 		if err != nil {
 			log.Fatal(err)
 		}
-		app.Server.StaticFS("/dist/", http.FS(fs))
 	}
+	app.Server.StaticFS("/dist/", http.FS(dist))
 
 	log.Println("listening on localhost:8000")
 	err := http.ListenAndServe("localhost:8000", app.Server.Handler())

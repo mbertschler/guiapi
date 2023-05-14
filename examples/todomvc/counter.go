@@ -12,7 +12,7 @@ import (
 )
 
 type Counter struct {
-	*App
+	*DB
 }
 
 func (c *Counter) Component() *guiapi.ComponentConfig {
@@ -62,7 +62,7 @@ func (c *Counter) RenderPage(ctx *gin.Context) (html.Block, error) {
 
 func (c *Counter) RenderBlock(ctx *gin.Context) (html.Block, error) {
 	sess := sessionFromContext(ctx)
-	counter, err := c.App.DB.GetCounter(sess.ID)
+	counter, err := c.DB.GetCounter(sess.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -78,12 +78,12 @@ func (c *Counter) RenderBlock(ctx *gin.Context) (html.Block, error) {
 
 func (c *Counter) Increase(ctx *gin.Context, args json.RawMessage) (*guiapi.Response, error) {
 	sess := sessionFromContext(ctx)
-	counter, err := c.App.DB.GetCounter(sess.ID)
+	counter, err := c.DB.GetCounter(sess.ID)
 	if err != nil {
 		return nil, err
 	}
 	counter.Count++
-	err = c.App.DB.SetCounter(counter)
+	err = c.DB.SetCounter(counter)
 	if err != nil {
 		return nil, err
 	}
@@ -92,12 +92,12 @@ func (c *Counter) Increase(ctx *gin.Context, args json.RawMessage) (*guiapi.Resp
 
 func (c *Counter) Decrease(ctx *gin.Context, args json.RawMessage) (*guiapi.Response, error) {
 	sess := sessionFromContext(ctx)
-	counter, err := c.App.DB.GetCounter(sess.ID)
+	counter, err := c.DB.GetCounter(sess.ID)
 	if err != nil {
 		return nil, err
 	}
 	counter.Count--
-	err = c.App.DB.SetCounter(counter)
+	err = c.DB.SetCounter(counter)
 	if err != nil {
 		return nil, err
 	}
