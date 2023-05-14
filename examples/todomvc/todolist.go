@@ -11,14 +11,6 @@ import (
 	"github.com/mbertschler/guiapi"
 )
 
-func registerTodoList(server *Server, db *DB) {
-	tl := &TodoList{DB: db}
-	server.RegisterComponent(tl)
-	server.RegisterPage("/", tl.RenderFullPage(TodoListPageAll))
-	server.RegisterPage("/active", tl.RenderFullPage(TodoListPageActive))
-	server.RegisterPage("/completed", tl.RenderFullPage(TodoListPageCompleted))
-}
-
 type Context struct {
 	gin   *gin.Context
 	Sess  *Session
@@ -51,7 +43,7 @@ func ContextCallable[T any](fn TypedContextCallable[T]) guiapi.Callable {
 
 type TypedContextPage func(c *Context) (html.Block, error)
 
-func ContextPage(fn TypedContextPage) PageFunc {
+func ContextPage(fn TypedContextPage) guiapi.PageFunc {
 	return func(c *gin.Context) (html.Block, error) {
 		sess := sessionFromContext(c)
 		return fn(&Context{gin: c, Sess: sess})
@@ -93,8 +85,8 @@ type TodoList struct {
 	*DB
 }
 
-func (t *TodoList) Component() *ComponentConfig {
-	return &ComponentConfig{
+func (t *TodoList) Component() *guiapi.ComponentConfig {
+	return &guiapi.ComponentConfig{
 		Name: "TodoList",
 		Actions: map[string]guiapi.Callable{
 			"NewTodo":        ContextCallable(t.NewTodo),
@@ -105,6 +97,11 @@ func (t *TodoList) Component() *ComponentConfig {
 			"EditItem":       ContextCallable(t.EditItem),
 			"UpdateItem":     ContextCallable(t.UpdateItem),
 			"Page":           ContextCallable(t.Page),
+		},
+		Pages: map[string]guiapi.PageFunc{
+			"/":          t.RenderFullPage(TodoListPageAll),
+			"/active":    t.RenderFullPage(TodoListPageActive),
+			"/completed": t.RenderFullPage(TodoListPageCompleted),
 		},
 	}
 }
@@ -125,7 +122,7 @@ type TodoListProps struct {
 	EditItemID int
 }
 
-func (t *TodoList) RenderFullPage(page string) PageFunc {
+func (t *TodoList) RenderFullPage(page string) guiapi.PageFunc {
 	return ContextPage(func(ctx *Context) (html.Block, error) {
 		content, err := t.renderPageContent(ctx, page)
 		if err != nil {

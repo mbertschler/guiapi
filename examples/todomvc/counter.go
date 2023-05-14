@@ -15,12 +15,15 @@ type Counter struct {
 	*App
 }
 
-func (c *Counter) Component() *ComponentConfig {
-	return &ComponentConfig{
+func (c *Counter) Component() *guiapi.ComponentConfig {
+	return &guiapi.ComponentConfig{
 		Name: "Counter",
 		Actions: map[string]guiapi.Callable{
 			"Increase": c.Increase,
 			"Decrease": c.Decrease,
+		},
+		Pages: map[string]guiapi.PageFunc{
+			"/counter": c.RenderPage,
 		},
 	}
 }

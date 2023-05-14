@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"io/fs"
 	"log"
 	"net/http"
 
@@ -10,36 +11,39 @@ import (
 
 type App struct {
 	DB     *DB
-	Server *Server
+	Server *guiapi.Server
 }
 
 func NewApp() *App {
 	app := &App{}
 	app.DB = NewDB()
-	app.Server = NewServer(app.DB)
+	app.Server = guiapi.New()
 	return app
 }
 
 //go:embed dist/*
-var distFS embed.FS
+var distEmbedFS embed.FS
 
 func main() {
-
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	app := NewApp()
-	counter := &Counter{App: app}
-	app.Server.RegisterComponent(counter)
-	app.Server.RegisterPage("/counter", counter.RenderPage)
+	app.Server.SessionMiddleware(app.DB.sessionMiddleware)
 
-	registerTodoList(app.Server, app.DB)
+	app.Server.RegisterComponent(&Counter{App: app})
+	app.Server.RegisterComponent(&TodoList{DB: app.DB})
 
 	if guiapi.EsbuildAvailable() {
 		err := guiapi.BuildAssets()
 		if err != nil {
 			log.Fatal(err)
 		}
-		app.Server.Static("/dist/", "./dist")
+		app.Server.StaticDir("/dist/", "./dist")
 	} else {
-		app.Server.engine.StaticFileFS("/dist/", "/dist/", http.FS(distFS))
+		fs, err := fs.Sub(distEmbedFS, "dist")
+		if err != nil {
+			log.Fatal(err)
+		}
+		app.Server.StaticFS("/dist/", http.FS(fs))
 	}
 
 	log.Println("listening on localhost:8000")
