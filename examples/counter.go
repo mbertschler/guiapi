@@ -28,7 +28,7 @@ func (c *Counter) Component() *guiapi.ComponentConfig {
 	}
 }
 
-func counterLayout(main html.Block) html.Block {
+func counterLayoutFunc(main html.Block) html.Block {
 	return html.Blocks{
 		html.Doctype("html"),
 		html.Html(nil,
@@ -39,7 +39,7 @@ func counterLayout(main html.Block) html.Block {
 				html.Link(attr.Rel("stylesheet").Href("/dist/bundle.css")),
 			),
 			html.Body(nil,
-				main,
+				html.Main(attr.Id("page"), main),
 				html.A(attr.Href("/"), html.Text("TodoMVC Example")),
 				html.Script(attr.Src("/dist/bundle.js")),
 			),
@@ -47,17 +47,36 @@ func counterLayout(main html.Block) html.Block {
 	}
 }
 
-func (c *Counter) RenderPage(ctx *gin.Context) (html.Block, error) {
+type CounterLayout struct{}
+
+func (c *CounterLayout) Name() string {
+	return "Counter"
+}
+
+func (c *CounterLayout) RenderPage(page *guiapi.Page) (html.Block, error) {
+	return counterLayoutFunc(page.Fragments["main"]), nil
+}
+
+func (c *CounterLayout) RenderUpdate(page *guiapi.Page) (*guiapi.Response, error) {
+	return guiapi.ReplaceContent("#page", page.Fragments["main"])
+}
+
+func (c *Counter) RenderPage(ctx *gin.Context) (*guiapi.Page, error) {
 	block, err := c.RenderBlock(ctx)
 	if err != nil {
 		return nil, err
 	}
-	main := html.Main(nil,
-		html.H1(nil, html.Text("Blocks")),
-		html.P(nil, html.Text("Blocks is a framework for building web applications in Go.")),
+	main := html.Blocks{
+		html.H1(nil, html.Text("GuiAPI")),
+		html.P(nil, html.Text("GuiAPI is a framework for building web applications in Go.")),
 		block,
-	)
-	return counterLayout(main), nil
+	}
+	return &guiapi.Page{
+		Layout: &CounterLayout{},
+		Fragments: map[string]html.Block{
+			"main": main,
+		},
+	}, nil
 }
 
 func (c *Counter) RenderBlock(ctx *gin.Context) (html.Block, error) {

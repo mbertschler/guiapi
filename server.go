@@ -53,12 +53,8 @@ func (s *Server) RegisterComponent(c Component) {
 		s.SetFunc(config.Name+"."+name, fn)
 	}
 	for path, fn := range config.Pages {
-		s.Page(path, fn)
+		s.page(path, fn)
 	}
-}
-
-func (s *Server) RegisterPage(path string, fn PageFunc) {
-	s.Page(path, fn)
 }
 
 // Static serves static files from the given directory.
@@ -75,9 +71,20 @@ func (s *Server) SetFunc(name string, fn Callable) {
 	s.guiapi.SetFunc(name, fn)
 }
 
-type PageFunc func(*gin.Context) (html.Block, error)
+type Layout interface {
+	Name() string
+	RenderPage(*Page) (html.Block, error)
+	RenderUpdate(*Page) (*Response, error)
+}
 
-func (s *Server) Page(path string, page PageFunc) {
+type Page struct {
+	Layout    Layout
+	Fragments map[string]html.Block
+}
+
+type PageFunc func(*gin.Context) (*Page, error)
+
+func (s *Server) page(path string, page PageFunc) {
 	s.withSession.GET(path, func(c *gin.Context) {
 		pageBlock, err := page(c)
 		if err != nil {
@@ -85,7 +92,13 @@ func (s *Server) Page(path string, page PageFunc) {
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}
-		err = html.RenderMinified(c.Writer, pageBlock)
+		block, err := pageBlock.Layout.RenderPage(pageBlock)
+		if err != nil {
+			log.Println("Layout error:", err)
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+		err = html.RenderMinified(c.Writer, block)
 		if err != nil {
 			log.Println("RenderMinified error:", err)
 			c.AbortWithStatus(http.StatusInternalServerError)

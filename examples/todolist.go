@@ -41,20 +41,16 @@ func ContextCallable[T any](fn TypedContextCallable[T]) guiapi.Callable {
 	}
 }
 
-type TypedContextPage func(c *Context) (html.Block, error)
+type TypedContextPage func(c *Context) (*guiapi.Page, error)
 
 func ContextPage(fn TypedContextPage) guiapi.PageFunc {
-	return func(c *gin.Context) (html.Block, error) {
+	return func(c *gin.Context) (*guiapi.Page, error) {
 		sess := sessionFromContext(c)
 		return fn(&Context{gin: c, Sess: sess})
 	}
 }
 
-func todoLayout(todoApp html.Block, state TodoListState) (html.Block, error) {
-	stateJSON, err := json.Marshal(state)
-	if err != nil {
-		return nil, err
-	}
+func todoLayout(todoApp, state html.Block) (html.Block, error) {
 	return html.Blocks{
 		html.Doctype("html"),
 		html.Html(attr.Attr("lang", "en"),
@@ -66,7 +62,7 @@ func todoLayout(todoApp html.Block, state TodoListState) (html.Block, error) {
 				html.Link(attr.Rel("stylesheet").Href("/dist/bundle.css")),
 			),
 			html.Body(nil,
-				todoApp,
+				html.Main(attr.Id("page"), todoApp),
 				html.Elem("footer", attr.Class("info"),
 					html.P(nil, html.Text("Double-click to edit a todo")),
 					html.P(nil, html.Text("Template by "), html.A(attr.Href("http://sindresorhus.com"), html.Text("Sindre Sorhus"))),
@@ -74,11 +70,34 @@ func todoLayout(todoApp html.Block, state TodoListState) (html.Block, error) {
 					html.P(nil, html.Text("Part of "), html.A(attr.Href("http://todomvc.com"), html.Text("TodoMVC"))),
 					html.A(attr.Href("/counter"), html.Text("Counter Example")),
 				),
-				html.Script(nil, html.JS("var state = "+string(stateJSON)+";")),
+				html.Script(attr.Id("state"), state),
 				html.Script(attr.Src("/dist/bundle.js")),
 			),
 		),
 	}, nil
+}
+
+type TodoLayout struct{}
+
+func (TodoLayout) Name() string { return "Todo" }
+func (TodoLayout) RenderPage(page *guiapi.Page) (html.Block, error) {
+	return todoLayout(page.Fragments["content"], page.Fragments["state"])
+}
+func (TodoLayout) RenderUpdate(page *guiapi.Page) (*guiapi.Response, error) {
+	res, err := guiapi.ReplaceElement("#page", page.Fragments["content"])
+	if err != nil {
+		return nil, err
+	}
+	state, err := html.RenderMinifiedString(page.Fragments["state"])
+	if err != nil {
+		return nil, err
+	}
+	res.HTML = append(res.HTML, guiapi.HTMLUpdate{
+		Operation: guiapi.HTMLReplaceContent,
+		Selector:  "#state",
+		Content:   state,
+	})
+	return res, nil
 }
 
 type TodoList struct {
@@ -123,12 +142,23 @@ type TodoListProps struct {
 }
 
 func (t *TodoList) RenderFullPage(page string) guiapi.PageFunc {
-	return ContextPage(func(ctx *Context) (html.Block, error) {
+	return ContextPage(func(ctx *Context) (*guiapi.Page, error) {
 		content, err := t.renderPageContent(ctx, page)
 		if err != nil {
 			return nil, err
 		}
-		return todoLayout(content, ctx.State)
+		stateJSON, err := json.Marshal(ctx.State)
+		if err != nil {
+			return nil, err
+		}
+		state := html.JS("var state = " + string(stateJSON) + ";")
+		return &guiapi.Page{
+			Layout: TodoLayout{},
+			Fragments: map[string]html.Block{
+				"content": content,
+				"state":   state,
+			},
+		}, nil
 	})
 }
 
