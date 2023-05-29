@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/gin-gonic/gin"
-
 	"github.com/mbertschler/blocks/html"
 	"github.com/mbertschler/blocks/html/attr"
 	"github.com/mbertschler/guiapi"
@@ -61,14 +59,14 @@ func (c *CounterLayout) RenderUpdate(page *guiapi.Page) (*guiapi.Response, error
 	return guiapi.ReplaceContent("#page", page.Fragments["main"])
 }
 
-func (c *Counter) RenderPage(ctx *gin.Context) (*guiapi.Page, error) {
+func (c *Counter) RenderPage(ctx *guiapi.Context) (*guiapi.Page, error) {
 	block, err := c.RenderBlock(ctx)
 	if err != nil {
 		return nil, err
 	}
 	main := html.Blocks{
-		html.H1(nil, html.Text("GuiAPI")),
-		html.P(nil, html.Text("GuiAPI is a framework for building web applications in Go.")),
+		html.H1(nil, html.Text("guiapi")),
+		html.P(nil, html.Text("guiapi is a framework for building web applications in Go.")),
 		block,
 	}
 	return &guiapi.Page{
@@ -79,7 +77,7 @@ func (c *Counter) RenderPage(ctx *gin.Context) (*guiapi.Page, error) {
 	}, nil
 }
 
-func (c *Counter) RenderBlock(ctx *gin.Context) (html.Block, error) {
+func (c *Counter) RenderBlock(ctx *guiapi.Context) (html.Block, error) {
 	sess := sessionFromContext(ctx)
 	counter, err := c.DB.GetCounter(sess.ID)
 	if err != nil {
@@ -95,7 +93,7 @@ func (c *Counter) RenderBlock(ctx *gin.Context) (html.Block, error) {
 	return block, nil
 }
 
-func (c *Counter) Increase(ctx *gin.Context, args json.RawMessage) (*guiapi.Response, error) {
+func (c *Counter) Increase(ctx *guiapi.Context, args json.RawMessage) (*guiapi.Response, error) {
 	sess := sessionFromContext(ctx)
 	counter, err := c.DB.GetCounter(sess.ID)
 	if err != nil {
@@ -109,7 +107,7 @@ func (c *Counter) Increase(ctx *gin.Context, args json.RawMessage) (*guiapi.Resp
 	return guiapi.ReplaceContent("#count", html.Text(fmt.Sprintf("Current count: %d", counter.Count)))
 }
 
-func (c *Counter) Decrease(ctx *gin.Context, args json.RawMessage) (*guiapi.Response, error) {
+func (c *Counter) Decrease(ctx *guiapi.Context, args json.RawMessage) (*guiapi.Response, error) {
 	sess := sessionFromContext(ctx)
 	counter, err := c.DB.GetCounter(sess.ID)
 	if err != nil {

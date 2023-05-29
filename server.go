@@ -1,41 +1,46 @@
 package guiapi
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
+	"github.com/julienschmidt/httprouter"
 	"github.com/mbertschler/blocks/html"
 )
 
 type Server struct {
-	engine      *gin.Engine
-	guiapi      *Handler
-	middleware  gin.HandlerFunc
-	withSession *gin.RouterGroup
+	router     *httprouter.Router
+	guiapi     *Handler
+	middleware Middleware
 }
 
-func New() *Server {
-	gin.SetMode(gin.ReleaseMode)
-
-	engine := gin.New()
-	engine.Use(gin.Recovery())
-	guiapi := NewGuiapi()
-
+func New(middleware Middleware) *Server {
 	s := &Server{
-		engine:      engine,
-		guiapi:      guiapi,
-		middleware:  func(c *gin.Context) { c.Next() },
-		withSession: engine.Group(""),
+		router:     httprouter.New(),
+		guiapi:     NewGuiapi(),
+		middleware: middleware,
 	}
-	s.withSession.Use(func(c *gin.Context) { s.middleware(c) })
-	s.withSession.POST("/guiapi", guiapi.Handle)
+	s.router.POST("/guiapi", s.wrapMiddleware(s.guiapi.Handle))
 	return s
 }
 
-func (s *Server) SessionMiddleware(handler gin.HandlerFunc) {
-	s.middleware = handler
+func (s *Server) wrapMiddleware(handler HandlerFunc) httprouter.Handle {
+	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+		c := &Context{
+			Writer:  w,
+			Request: r,
+			Params:  ps,
+		}
+		if s.middleware != nil {
+			s.middleware(c, handler)
+		} else {
+			handler(c)
+		}
+	}
 }
+
+type Middleware func(c *Context, next HandlerFunc)
 
 type Component interface {
 	Component() *ComponentConfig
@@ -57,14 +62,8 @@ func (s *Server) RegisterComponent(c Component) {
 	}
 }
 
-// Static serves static files from the given directory.
-func (s *Server) StaticDir(path, dir string) {
-	s.engine.Static(path, dir)
-}
-
-// Static serves static files from the given directory.
-func (s *Server) StaticFS(url string, fs http.FileSystem) {
-	s.engine.StaticFS(url, fs)
+func (s *Server) ServeFiles(url string, fs http.FileSystem) {
+	s.router.ServeFiles(url+"*filepath", fs)
 }
 
 func (s *Server) SetFunc(name string, fn Callable) {
@@ -82,31 +81,74 @@ type Page struct {
 	Fragments map[string]html.Block
 }
 
-type PageFunc func(*gin.Context) (*Page, error)
+type Context struct {
+	Writer  http.ResponseWriter
+	Request *http.Request
+	Params  httprouter.Params
+	Session any
+	State   json.RawMessage
+}
+
+type PageFunc func(*Context) (*Page, error)
 
 func (s *Server) page(path string, page PageFunc) {
-	s.withSession.GET(path, func(c *gin.Context) {
+	s.router.GET(path, s.wrapMiddleware(func(c *Context) {
 		pageBlock, err := page(c)
 		if err != nil {
 			log.Println("Page error:", err)
-			c.AbortWithStatus(http.StatusInternalServerError)
+			http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		block, err := pageBlock.Layout.RenderPage(pageBlock)
 		if err != nil {
 			log.Println("Layout error:", err)
-			c.AbortWithStatus(http.StatusInternalServerError)
+			http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		err = html.RenderMinified(c.Writer, block)
 		if err != nil {
 			log.Println("RenderMinified error:", err)
-			c.AbortWithStatus(http.StatusInternalServerError)
+			http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}))
+}
+
+func (s *Server) pageUpdate(path string, page PageFunc) {
+	s.guiapi.Router.GET(path, func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+		ctx := &Context{Request: r, Writer: w, Params: p}
+		pageBlock, err := page(ctx)
+		if err != nil {
+			log.Println("Page error:", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+		resp, err := pageBlock.Layout.RenderUpdate(pageBlock)
+		if err != nil {
+			log.Println("Layout error:", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+		buf, err := json.Marshal(resp)
+		if err != nil {
+			log.Println("JSON error:", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+		n, err := w.Write(buf)
+		if err != nil {
+			log.Println("Write error:", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+		if n != len(buf) {
+			log.Println("Write error: wrote", n, "bytes, expected", len(buf))
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
 	})
 }
 
 func (s *Server) Handler() http.Handler {
-	return s.engine.Handler()
+	return s.router
 }

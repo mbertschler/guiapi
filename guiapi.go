@@ -3,11 +3,10 @@ package guiapi
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
+	"log"
 
+	"github.com/julienschmidt/httprouter"
 	"github.com/mbertschler/blocks/html"
-
-	"github.com/gin-gonic/gin"
 )
 
 // NewGuiapi returns an empty handler
@@ -93,20 +92,31 @@ func Redirect(path string) (*Response, error) {
 }
 
 // Handle handles HTTP requests to the GUI API.
-func (h *Handler) Handle(c *gin.Context) {
+func (h *Handler) Handle(c *Context) {
 	var req Request
-	err := c.BindJSON(&req)
+	err := json.NewDecoder(c.Request.Body).Decode(&req)
 	if err != nil {
+		log.Println("guiapi: error decoding request:", err)
 		return
 	}
 	resp := h.process(c, &req)
-	c.JSON(http.StatusOK, resp)
+	err = json.NewEncoder(c.Writer).Encode(resp)
+	if err != nil {
+		log.Println("guiapi: error encoding response:", err)
+		return
+	}
 }
 
-func (h *Handler) process(c *gin.Context, req *Request) *Response {
+func (h *Handler) process(c *Context, req *Request) *Response {
 	var res = Response{
 		Name: req.Name,
+		URL:  req.URL,
 	}
+
+	if req.URL != "" {
+		return h.processURL(c, req, &res)
+	}
+
 	fn, ok := h.Functions[req.Name]
 	if !ok {
 		res.Error = &Error{
@@ -115,10 +125,7 @@ func (h *Handler) process(c *gin.Context, req *Request) *Response {
 		}
 
 	} else {
-		if c.Keys == nil {
-			c.Keys = map[string]interface{}{}
-		}
-		c.Keys["rawState"] = []byte(req.State)
+		c.State = req.State
 		r, err := fn(c, req.Args)
 		if err != nil {
 			res.Error = &Error{
@@ -138,9 +145,16 @@ func (h *Handler) process(c *gin.Context, req *Request) *Response {
 	return &res
 }
 
+func (h *Handler) processURL(c *Context, req *Request, res *Response) *Response {
+	return nil // TODO
+}
+
 // Request is the sent body of a GUI API call
 type Request struct {
-	Name string // Name of the action that is called
+	// Name of the action that is called
+	Name string `json:",omitempty"`
+	// URL is the URL of the next page that should be loaded via guiapi.
+	URL string `json:",omitempty"`
 	// Args as object, gets parsed by the called function
 	Args json.RawMessage `json:",omitempty"`
 	// State is can be passed back and forth between the server and browser.
@@ -149,14 +163,20 @@ type Request struct {
 }
 
 type Handler struct {
+	Router    *httprouter.Router
 	Functions map[string]Callable
 }
 
-type Callable func(c *gin.Context, args json.RawMessage) (*Response, error)
+type HandlerFunc func(*Context)
+
+type Callable func(c *Context, args json.RawMessage) (*Response, error)
 
 // Response is the returned body of a GUI API call
 type Response struct {
-	Name  string       // Name of the action that was called
+	// Name of the action that was called
+	Name string `json:",omitempty"`
+	// URL that was loaded.
+	URL   string       `json:",omitempty"`
 	Error *Error       `json:",omitempty"`
 	HTML  []HTMLUpdate `json:",omitempty"` // DOM updates to apply
 	JS    []JSCall     `json:",omitempty"` // JS calls to execute
@@ -185,9 +205,9 @@ type HTMLUpdate struct {
 type JSCall struct {
 	Name string // name of the function to call
 	// Args as object, gets encoded by the called function
-	Args interface{} `json:",omitempty"`
+	Args any `json:",omitempty"`
 }
 
-func (r *Response) AddJSResponse(name string, args interface{}) {
+func (r *Response) AddJSResponse(name string, args any) {
 	r.JS = append(r.JS, JSCall{Name: name, Args: args})
 }

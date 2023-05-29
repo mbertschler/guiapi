@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
+	"github.com/mbertschler/guiapi"
 )
 
 type SessionStorage interface {
@@ -15,13 +15,13 @@ type SessionStorage interface {
 
 const sessionCookie = "session"
 
-func sessionFromContext(c *gin.Context) *Session {
-	sess, ok := c.Keys["session"].(*Session)
+func sessionFromContext(c *guiapi.Context) *Session {
+	sess, ok := c.Session.(*Session)
 	if ok && sess != nil {
 		return sess
 	}
 	if !ok {
-		log.Printf("bad session %#v", c.Keys["session"])
+		log.Printf("bad session %#v", c.Session)
 	}
 	if sess == nil {
 		sess = &Session{}
@@ -29,7 +29,7 @@ func sessionFromContext(c *gin.Context) *Session {
 	return sess
 }
 
-func (db *DB) sessionMiddleware(c *gin.Context) {
+func (db *DB) sessionMiddleware(c *guiapi.Context, next guiapi.HandlerFunc) {
 	cookie, err := c.Request.Cookie(sessionCookie)
 	if err != nil && err != http.ErrNoCookie {
 		log.Println("sessionMiddleware.Cookie:", err)
@@ -51,10 +51,8 @@ func (db *DB) sessionMiddleware(c *gin.Context) {
 			Expires:  time.Now().Add(30 * 24 * time.Hour),
 		})
 	}
-	c.Keys = map[string]interface{}{
-		"session": sess,
-	}
-	c.Next()
+	c.Session = sess
+	next(c)
 	err = db.SetSession(sess)
 	if err != nil {
 		log.Println("sessionMiddleware.SetSession:", err)

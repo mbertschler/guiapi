@@ -18,7 +18,7 @@ type App struct {
 func NewApp() *App {
 	app := &App{}
 	app.DB = NewDB()
-	app.Server = guiapi.New()
+	app.Server = guiapi.New(app.DB.sessionMiddleware)
 	return app
 }
 
@@ -36,7 +36,6 @@ func main() {
 	}
 
 	app := NewApp()
-	app.Server.SessionMiddleware(app.DB.sessionMiddleware)
 
 	app.Server.RegisterComponent(&Counter{DB: app.DB})
 	app.Server.RegisterComponent(&TodoList{DB: app.DB})
@@ -55,7 +54,7 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-	app.Server.StaticFS("/dist/", http.FS(dist))
+	app.Server.ServeFiles("/dist/", http.FS(dist))
 
 	log.Println("listening on localhost:8000")
 	err := http.ListenAndServe("localhost:8000", app.Server.Handler())

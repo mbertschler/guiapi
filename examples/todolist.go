@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gin-gonic/gin"
 	"github.com/mbertschler/blocks/html"
 	"github.com/mbertschler/blocks/html/attr"
 	"github.com/mbertschler/guiapi"
 )
 
 type Context struct {
-	gin   *gin.Context
+	Ctx   *guiapi.Context
 	Sess  *Session
 	State TodoListState
 }
@@ -20,22 +19,19 @@ type Context struct {
 type TypedContextCallable[T any] func(c *Context, args *T) (*guiapi.Response, error)
 
 func ContextCallable[T any](fn TypedContextCallable[T]) guiapi.Callable {
-	return func(c *gin.Context, raw json.RawMessage) (*guiapi.Response, error) {
+	return func(c *guiapi.Context, raw json.RawMessage) (*guiapi.Response, error) {
 		var input T
 		err := json.Unmarshal(raw, &input)
 		if err != nil {
 			return nil, err
 		}
 
-		ctx := &Context{gin: c,
+		ctx := &Context{Ctx: c,
 			Sess: sessionFromContext(c)}
 
-		stateJSON, ok := c.Keys["rawState"].([]byte)
-		if ok {
-			err = json.Unmarshal(stateJSON, &ctx.State)
-			if err != nil {
-				return nil, err
-			}
+		err = json.Unmarshal(c.State, &ctx.State)
+		if err != nil {
+			return nil, err
 		}
 		return fn(ctx, &input)
 	}
@@ -44,9 +40,9 @@ func ContextCallable[T any](fn TypedContextCallable[T]) guiapi.Callable {
 type TypedContextPage func(c *Context) (*guiapi.Page, error)
 
 func ContextPage(fn TypedContextPage) guiapi.PageFunc {
-	return func(c *gin.Context) (*guiapi.Page, error) {
+	return func(c *guiapi.Context) (*guiapi.Page, error) {
 		sess := sessionFromContext(c)
-		return fn(&Context{gin: c, Sess: sess})
+		return fn(&Context{Ctx: c, Sess: sess})
 	}
 }
 
