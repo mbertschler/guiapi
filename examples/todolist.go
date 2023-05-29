@@ -54,7 +54,7 @@ func todoLayout(todoApp html.Block, state any) (html.Block, error) {
 	stateBlock := html.JS("var state = " + string(stateJSON) + ";")
 	return html.Blocks{
 		html.Doctype("html"),
-		html.Html(attr.Attr("lang", "en"),
+		html.Html(attr.Lang("en"),
 			html.Head(nil,
 				html.Meta(attr.Charset("utf-8")),
 				html.Meta(attr.Name("viewport").Content("width=device-width, initial-scale=1")),
@@ -179,8 +179,8 @@ func (t *TodoList) renderBlock(props *TodoListProps) (html.Block, error) {
 	block := html.Elem("section", attr.Class("todoapp"),
 		html.Elem("header", attr.Class("header"),
 			html.H1(nil, html.Text("todos")),
-			html.Input(attr.Class("new-todo ga").Name("new-todo").Attr("placeholder", "What needs to be done?").
-				Attr("autofocus", "").Attr("ga-on", "keydown").Attr("ga-func", "newTodoKeydown")),
+			html.Input(attr.Class("new-todo ga").Name("new-todo").Placeholder("What needs to be done?").
+				Autofocus("").Attr("ga-on", "keydown").Attr("ga-func", "newTodoKeydown")),
 		),
 		main,
 		footer,
@@ -200,8 +200,8 @@ func (t *TodoList) renderMainBlock(todos *StoredTodo, page string, editItemID in
 		items.Add(t.renderItem(&item, editItemID))
 	}
 	main := html.Elem("section", attr.Class("main"),
-		html.Input(attr.Id("toggle-all").Class("toggle-all").Attr("type", "checkbox")),
-		html.Label(attr.Class("ga").Attr("for", "toggle-all").Attr("ga-on", "click").Attr("ga-action", "TodoList.ToggleAll"),
+		html.Input(attr.Id("toggle-all").Class("toggle-all").Type("checkbox")),
+		html.Label(attr.Class("ga").For("toggle-all").Attr("ga-on", "click").Attr("ga-action", "TodoList.ToggleAll"),
 			html.Text("Mark all as complete")),
 		html.Ul(attr.Class("todo-list"),
 			items,
@@ -218,12 +218,12 @@ func (t *TodoList) renderItem(item *StoredTodoItem, editItemID int) html.Block {
 	liAttrs := attr.Attr("ga-on", "dblclick").
 		Attr("ga-action", "TodoList.EditItem").
 		Attr("ga-args", fmt.Sprintf(`{"id":%d}`, item.ID))
-	inputAttrs := attr.Class("toggle ga").Attr("type", "checkbox").
+	inputAttrs := attr.Class("toggle ga").Type("checkbox").
 		Attr("ga-on", "click").Attr("ga-action", "TodoList.ToggleItem").
 		Attr("ga-args", fmt.Sprintf(`{"id":%d}`, item.ID))
 	if item.Done {
 		liAttrs = liAttrs.Class("completed ga")
-		inputAttrs = inputAttrs.Attr("checked", "")
+		inputAttrs = inputAttrs.Checked("")
 	} else {
 		liAttrs = liAttrs.Class("active ga")
 	}
@@ -245,7 +245,7 @@ func (t *TodoList) renderItemEdit(item *StoredTodoItem, editItemID int) html.Blo
 	li := html.Li(attr.Class("editing"),
 		html.Div(attr.Class("view"),
 			html.Input(attr.Class("edit ga").Attr("ga-init", "initEdit").
-				Attr("ga-args", fmt.Sprintf(`{"id":%d}`, item.ID)).Attr("value", item.Text)),
+				Attr("ga-args", fmt.Sprintf(`{"id":%d}`, item.ID)).Value(item.Text)),
 		),
 	)
 	return li
