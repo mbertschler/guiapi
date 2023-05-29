@@ -32,7 +32,7 @@ func counterLayoutFunc(main html.Block) html.Block {
 		html.Html(nil,
 			html.Head(nil,
 				html.Meta(attr.Charset("utf-8")),
-				html.Title(nil, html.Text("Blocks")),
+				html.Title(nil, html.Text("Guiapi Counter Example")),
 				html.Link(attr.Rel("stylesheet").Href("https://cdn.jsdelivr.net/npm/simpledotcss@2.2.0/simple.min.css")),
 				html.Link(attr.Rel("stylesheet").Href("/dist/bundle.css")),
 			),

@@ -46,7 +46,12 @@ func ContextPage(fn TypedContextPage) guiapi.PageFunc {
 	}
 }
 
-func todoLayout(todoApp, state html.Block) (html.Block, error) {
+func todoLayout(todoApp html.Block, state any) (html.Block, error) {
+	stateJSON, err := json.Marshal(state)
+	if err != nil {
+		return nil, err
+	}
+	stateBlock := html.JS("var state = " + string(stateJSON) + ";")
 	return html.Blocks{
 		html.Doctype("html"),
 		html.Html(attr.Attr("lang", "en"),
@@ -66,7 +71,7 @@ func todoLayout(todoApp, state html.Block) (html.Block, error) {
 					html.P(nil, html.Text("Part of "), html.A(attr.Href("http://todomvc.com"), html.Text("TodoMVC"))),
 					html.A(attr.Href("/counter"), html.Text("Counter Example")),
 				),
-				html.Script(attr.Id("state"), state),
+				html.Script(attr.Id("state"), stateBlock),
 				html.Script(attr.Src("/dist/bundle.js")),
 			),
 		),
@@ -77,22 +82,14 @@ type TodoLayout struct{}
 
 func (TodoLayout) Name() string { return "Todo" }
 func (TodoLayout) RenderPage(page *guiapi.Page) (html.Block, error) {
-	return todoLayout(page.Fragments["content"], page.Fragments["state"])
+	return todoLayout(page.Fragments["content"], page.State)
 }
 func (TodoLayout) RenderUpdate(page *guiapi.Page) (*guiapi.Response, error) {
-	res, err := guiapi.ReplaceElement("#page", page.Fragments["content"])
+	res, err := guiapi.ReplaceContent("#page", page.Fragments["content"])
 	if err != nil {
 		return nil, err
 	}
-	state, err := html.RenderMinifiedString(page.Fragments["state"])
-	if err != nil {
-		return nil, err
-	}
-	res.HTML = append(res.HTML, guiapi.HTMLUpdate{
-		Operation: guiapi.HTMLReplaceContent,
-		Selector:  "#state",
-		Content:   state,
-	})
+	res.State = page.State
 	return res, nil
 }
 
@@ -111,7 +108,6 @@ func (t *TodoList) Component() *guiapi.ComponentConfig {
 			"ClearCompleted": ContextCallable(t.ClearCompleted),
 			"EditItem":       ContextCallable(t.EditItem),
 			"UpdateItem":     ContextCallable(t.UpdateItem),
-			"Page":           ContextCallable(t.Page),
 		},
 		Pages: map[string]guiapi.PageFunc{
 			"/":          t.RenderFullPage(TodoListPageAll),
@@ -143,16 +139,11 @@ func (t *TodoList) RenderFullPage(page string) guiapi.PageFunc {
 		if err != nil {
 			return nil, err
 		}
-		stateJSON, err := json.Marshal(ctx.State)
-		if err != nil {
-			return nil, err
-		}
-		state := html.JS("var state = " + string(stateJSON) + ";")
 		return &guiapi.Page{
 			Layout: TodoLayout{},
+			State:  ctx.State,
 			Fragments: map[string]html.Block{
 				"content": content,
-				"state":   state,
 			},
 		}, nil
 	})
@@ -169,19 +160,6 @@ func (t *TodoList) renderPageContent(ctx *Context, page string) (html.Block, err
 
 type PageArgs struct {
 	Page string
-}
-
-func (t *TodoList) Page(ctx *Context, args *PageArgs) (*guiapi.Response, error) {
-	block, err := t.renderPageContent(ctx, args.Page)
-	if err != nil {
-		return nil, err
-	}
-	res, err := guiapi.ReplaceContent(".todoapp", block)
-	if err != nil {
-		return nil, err
-	}
-	res.State = ctx.State
-	return res, nil
 }
 
 func (t *TodoList) renderBlock(props *TodoListProps) (html.Block, error) {
@@ -201,7 +179,7 @@ func (t *TodoList) renderBlock(props *TodoListProps) (html.Block, error) {
 	block := html.Elem("section", attr.Class("todoapp"),
 		html.Elem("header", attr.Class("header"),
 			html.H1(nil, html.Text("todos")),
-			html.Input(attr.Class("new-todo ga").Attr("placeholder", "What needs to be done?").
+			html.Input(attr.Class("new-todo ga").Name("new-todo").Attr("placeholder", "What needs to be done?").
 				Attr("autofocus", "").Attr("ga-on", "keydown").Attr("ga-func", "newTodoKeydown")),
 		),
 		main,
@@ -222,7 +200,7 @@ func (t *TodoList) renderMainBlock(todos *StoredTodo, page string, editItemID in
 		items.Add(t.renderItem(&item, editItemID))
 	}
 	main := html.Elem("section", attr.Class("main"),
-		html.Input(attr.Class("toggle-all").Attr("type", "checkbox")),
+		html.Input(attr.Id("toggle-all").Class("toggle-all").Attr("type", "checkbox")),
 		html.Label(attr.Class("ga").Attr("for", "toggle-all").Attr("ga-on", "click").Attr("ga-action", "TodoList.ToggleAll"),
 			html.Text("Mark all as complete")),
 		html.Ul(attr.Class("todo-list"),
@@ -250,10 +228,11 @@ func (t *TodoList) renderItem(item *StoredTodoItem, editItemID int) html.Block {
 		liAttrs = liAttrs.Class("active ga")
 	}
 
+	id := fmt.Sprintf("todo-%d", item.ID)
 	li := html.Li(liAttrs,
 		html.Div(attr.Class("view"),
-			html.Input(inputAttrs),
-			html.Label(nil, html.Text(item.Text)),
+			html.Input(inputAttrs.Id(id)),
+			html.Label(attr.For(id), html.Text(item.Text)),
 			html.Button(attr.Class("destroy ga").
 				Attr("ga-on", "click").Attr("ga-action", "TodoList.DeleteItem").
 				Attr("ga-args", fmt.Sprintf(`{"id":%d}`, item.ID))),
@@ -312,13 +291,13 @@ func (t *TodoList) renderFooterBlock(todos *StoredTodo, page string) (html.Block
 		),
 		html.Ul(attr.Class("filters"),
 			html.Li(nil,
-				html.A(attr.Class(allClass+" ga").Href("/").Attr("ga-link", "TodoList.Page").Attr("ga-state", `{"Page":"all"}`), html.Text("All")),
+				html.A(attr.Class(allClass+" ga").Href("/").Attr("ga-link", nil), html.Text("All")),
 			),
 			html.Li(nil,
-				html.A(attr.Class(activeClass+" ga").Href("/active").Attr("ga-link", "TodoList.Page").Attr("ga-state", `{"Page":"active"}`), html.Text("Active")),
+				html.A(attr.Class(activeClass+" ga").Href("/active").Attr("ga-link", nil), html.Text("Active")),
 			),
 			html.Li(nil,
-				html.A(attr.Class(completedClass+" ga").Href("/completed").Attr("ga-link", "TodoList.Page").Attr("ga-state", `{"Page":"completed"}`), html.Text("Completed")),
+				html.A(attr.Class(completedClass+" ga").Href("/completed").Attr("ga-link", nil), html.Text("Completed")),
 			),
 		),
 		clearCompletedButton,

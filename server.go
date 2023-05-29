@@ -59,6 +59,7 @@ func (s *Server) RegisterComponent(c Component) {
 	}
 	for path, fn := range config.Pages {
 		s.page(path, fn)
+		s.pageUpdate(path, fn)
 	}
 }
 
@@ -78,6 +79,7 @@ type Layout interface {
 
 type Page struct {
 	Layout    Layout
+	State     any
 	Fragments map[string]html.Block
 }
 
@@ -115,38 +117,37 @@ func (s *Server) page(path string, page PageFunc) {
 }
 
 func (s *Server) pageUpdate(path string, page PageFunc) {
-	s.guiapi.Router.GET(path, func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-		ctx := &Context{Request: r, Writer: w, Params: p}
-		pageBlock, err := page(ctx)
+	s.guiapi.Router.GET(path, s.wrapMiddleware(func(c *Context) {
+		pageBlock, err := page(c)
 		if err != nil {
 			log.Println("Page error:", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			http.Error(c.Writer, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
 		resp, err := pageBlock.Layout.RenderUpdate(pageBlock)
 		if err != nil {
 			log.Println("Layout error:", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			http.Error(c.Writer, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
 		buf, err := json.Marshal(resp)
 		if err != nil {
 			log.Println("JSON error:", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			http.Error(c.Writer, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
-		n, err := w.Write(buf)
+		n, err := c.Writer.Write(buf)
 		if err != nil {
 			log.Println("Write error:", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			http.Error(c.Writer, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
 		if n != len(buf) {
 			log.Println("Write error: wrote", n, "bytes, expected", len(buf))
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			http.Error(c.Writer, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
-	})
+	}))
 }
 
 func (s *Server) Handler() http.Handler {

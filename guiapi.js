@@ -21,13 +21,28 @@ export function guiapi(name, args, callback) {
     if (debugGuiapi) {
         console.log("guiapi action:", name, "args:", args, "state:", state)
     }
-    if (!callback) {
-        callback = () => { }
-    }
     var req = {
         Name: name,
         Args: args,
         State: state,
+    }
+    guiapiRequest(req, callback)
+}
+
+function guiapiPage(url, callback) {
+    if (debugGuiapi) {
+        console.log("guiapi page:", url, "state:", state)
+    }
+    var req = {
+        URL: url,
+        State: state,
+    }
+    guiapiRequest(req, callback)
+}
+
+function guiapiRequest(req, callback) {
+    if (!callback) {
+        callback = () => { }
     }
     fetch("/guiapi", {
         method: 'POST',
@@ -179,28 +194,21 @@ function hydrateInit(el) {
 let originalState = null
 
 function hydrateLink(el) {
-    var action = el.attributes.getNamedItem("ga-link").value
-    var newState = null
-    if (el.attributes.getNamedItem("ga-state")) {
-        newState = el.attributes.getNamedItem("ga-state").value
-        try {
-            newState = JSON.parse(newState)
-        } catch (e) { }
-    }
+    var url = el.attributes.getNamedItem("href").value
     el.addEventListener("click", function (e) {
         if (originalState === null) {
             originalState = {
-                action,
+                url,
                 oldState: { ...state },
             }
         }
-        guiapi(action, newState, err => {
+        guiapiPage(url, err => {
             if (err) {
                 console.error("error", err)
                 return
             }
             const pushedState = {
-                action,
+                url,
                 oldState: { ...state },
             }
             window.history.pushState(pushedState, "", el.href)
@@ -229,7 +237,7 @@ function setupHistory() {
         if (!s) {
             s = originalState
         }
-        guiapi(s.action, s.oldState)
+        guiapiPage(s.url)
     })
 }
 

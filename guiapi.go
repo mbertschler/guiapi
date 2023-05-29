@@ -13,6 +13,7 @@ import (
 func NewGuiapi() *Handler {
 	return &Handler{
 		Functions: map[string]Callable{},
+		Router:    httprouter.New(),
 	}
 }
 
@@ -99,6 +100,10 @@ func (h *Handler) Handle(c *Context) {
 		log.Println("guiapi: error decoding request:", err)
 		return
 	}
+	if req.URL != "" {
+		h.processURL(c, &req)
+		return
+	}
 	resp := h.process(c, &req)
 	err = json.NewEncoder(c.Writer).Encode(resp)
 	if err != nil {
@@ -110,11 +115,6 @@ func (h *Handler) Handle(c *Context) {
 func (h *Handler) process(c *Context, req *Request) *Response {
 	var res = Response{
 		Name: req.Name,
-		URL:  req.URL,
-	}
-
-	if req.URL != "" {
-		return h.processURL(c, req, &res)
 	}
 
 	fn, ok := h.Functions[req.Name]
@@ -145,8 +145,9 @@ func (h *Handler) process(c *Context, req *Request) *Response {
 	return &res
 }
 
-func (h *Handler) processURL(c *Context, req *Request, res *Response) *Response {
-	return nil // TODO
+func (h *Handler) processURL(c *Context, req *Request) {
+	handle, params, _ := h.Router.Lookup("GET", req.URL)
+	handle(c.Writer, c.Request, params)
 }
 
 // Request is the sent body of a GUI API call
