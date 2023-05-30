@@ -39,6 +39,7 @@ func main() {
 
 	app.Server.RegisterComponent(&Counter{DB: app.DB})
 	app.Server.RegisterComponent(&TodoList{DB: app.DB})
+	app.Server.RegisterComponent(NewReportsComponent())
 
 	var dist fs.FS = distEmbedFS
 	if guiapi.EsbuildAvailable() {

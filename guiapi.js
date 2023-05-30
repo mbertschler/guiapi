@@ -161,7 +161,20 @@ function hydrateOn(el) {
                 args = JSON.parse(args)
             } catch (e) { }
         }
+        var selector = null
+        if (el.attributes.getNamedItem("ga-values")) {
+            selector = el.attributes.getNamedItem("ga-values").value
+        }
         el.addEventListener(eventType, function (e) {
+            if (selector) {
+                if (args == null) {
+                    args = {}
+                }
+                var elements = document.querySelectorAll(selector)
+                for (ele of elements) {
+                    args[ele.name] = ele.value
+                }
+            }
             guiapi(action, args)
             e.preventDefault()
             e.stopPropagation()
