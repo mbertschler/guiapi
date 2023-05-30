@@ -71,16 +71,9 @@ func (s *Server) SetFunc(name string, fn Callable) {
 	s.guiapi.SetFunc(name, fn)
 }
 
-type Layout interface {
-	Name() string
-	RenderPage(*Page) (html.Block, error)
-	RenderUpdate(*Page) (*Response, error)
-}
-
-type Page struct {
-	Layout    Layout
-	State     any
-	Fragments map[string]html.Block
+type Page interface {
+	HTML() (html.Block, error)
+	Update() (*Response, error)
 }
 
 type Context struct {
@@ -91,25 +84,25 @@ type Context struct {
 	State   json.RawMessage
 }
 
-type PageFunc func(*Context) (*Page, error)
+type PageFunc func(*Context) (Page, error)
 
 func (s *Server) page(path string, page PageFunc) {
 	s.router.GET(path, s.wrapMiddleware(func(c *Context) {
-		pageBlock, err := page(c)
+		res, err := page(c)
 		if err != nil {
-			log.Println("Page error:", err)
+			log.Println("page error:", err)
 			http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		block, err := pageBlock.Layout.RenderPage(pageBlock)
+		block, err := res.HTML()
 		if err != nil {
-			log.Println("Layout error:", err)
+			log.Println("page.HTML error:", err)
 			http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		err = html.RenderMinified(c.Writer, block)
 		if err != nil {
-			log.Println("RenderMinified error:", err)
+			log.Println("renderMinified error:", err)
 			http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -118,32 +111,21 @@ func (s *Server) page(path string, page PageFunc) {
 
 func (s *Server) pageUpdate(path string, page PageFunc) {
 	s.guiapi.Router.GET(path, s.wrapMiddleware(func(c *Context) {
-		pageBlock, err := page(c)
+		res, err := page(c)
 		if err != nil {
-			log.Println("Page error:", err)
+			log.Println("page error:", err)
 			http.Error(c.Writer, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
-		resp, err := pageBlock.Layout.RenderUpdate(pageBlock)
+		resp, err := res.Update()
 		if err != nil {
-			log.Println("Layout error:", err)
+			log.Println("page.Update error:", err)
 			http.Error(c.Writer, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
-		buf, err := json.Marshal(resp)
+		err = json.NewEncoder(c.Writer).Encode(resp)
 		if err != nil {
-			log.Println("JSON error:", err)
-			http.Error(c.Writer, "Internal Server Error", http.StatusInternalServerError)
-			return
-		}
-		n, err := c.Writer.Write(buf)
-		if err != nil {
-			log.Println("Write error:", err)
-			http.Error(c.Writer, "Internal Server Error", http.StatusInternalServerError)
-			return
-		}
-		if n != len(buf) {
-			log.Println("Write error: wrote", n, "bytes, expected", len(buf))
+			log.Println("write error:", err)
 			http.Error(c.Writer, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}

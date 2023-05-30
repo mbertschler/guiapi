@@ -37,17 +37,22 @@ func ContextCallable[T any](fn TypedContextCallable[T]) guiapi.Callable {
 	}
 }
 
-type TypedContextPage func(c *Context) (*guiapi.Page, error)
+type TypedContextPage func(c *Context) (guiapi.Page, error)
 
 func ContextPage(fn TypedContextPage) guiapi.PageFunc {
-	return func(c *guiapi.Context) (*guiapi.Page, error) {
+	return func(c *guiapi.Context) (guiapi.Page, error) {
 		sess := sessionFromContext(c)
 		return fn(&Context{Ctx: c, Sess: sess})
 	}
 }
 
-func todoLayout(todoApp html.Block, state any) (html.Block, error) {
-	stateJSON, err := json.Marshal(state)
+type TodoPage struct {
+	Content html.Block
+	State   TodoListState
+}
+
+func (t *TodoPage) HTML() (html.Block, error) {
+	stateJSON, err := json.Marshal(t.State)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +68,7 @@ func todoLayout(todoApp html.Block, state any) (html.Block, error) {
 				html.Link(attr.Rel("stylesheet").Href("/dist/bundle.css")),
 			),
 			html.Body(nil,
-				html.Main(attr.Id("page"), todoApp),
+				html.Main(attr.Id("page"), t.Content),
 				html.Elem("footer", attr.Class("info"),
 					html.P(nil, html.Text("Double-click to edit a todo")),
 					html.P(nil, html.Text("Template by "), html.A(attr.Href("http://sindresorhus.com"), html.Text("Sindre Sorhus"))),
@@ -77,19 +82,12 @@ func todoLayout(todoApp html.Block, state any) (html.Block, error) {
 		),
 	}, nil
 }
-
-type TodoLayout struct{}
-
-func (TodoLayout) Name() string { return "Todo" }
-func (TodoLayout) RenderPage(page *guiapi.Page) (html.Block, error) {
-	return todoLayout(page.Fragments["content"], page.State)
-}
-func (TodoLayout) RenderUpdate(page *guiapi.Page) (*guiapi.Response, error) {
-	res, err := guiapi.ReplaceContent("#page", page.Fragments["content"])
+func (t *TodoPage) Update() (*guiapi.Response, error) {
+	res, err := guiapi.ReplaceContent("#page", t.Content)
 	if err != nil {
 		return nil, err
 	}
-	res.State = page.State
+	res.State = t.State
 	return res, nil
 }
 
@@ -134,18 +132,12 @@ type TodoListProps struct {
 }
 
 func (t *TodoList) RenderFullPage(page string) guiapi.PageFunc {
-	return ContextPage(func(ctx *Context) (*guiapi.Page, error) {
+	return ContextPage(func(ctx *Context) (guiapi.Page, error) {
 		content, err := t.renderPageContent(ctx, page)
 		if err != nil {
 			return nil, err
 		}
-		return &guiapi.Page{
-			Layout: TodoLayout{},
-			State:  ctx.State,
-			Fragments: map[string]html.Block{
-				"content": content,
-			},
-		}, nil
+		return &TodoPage{Content: content, State: ctx.State}, nil
 	})
 }
 
