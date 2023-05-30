@@ -1,0 +1,24 @@
+input {
+    min-width: 50%;
+}
+
+.spinner {
+    display: inline-block;
+    position: relative;
+    top: 11px;
+    margin-left: 10px;
+
+    border: 8px solid #ddd;
+    border-radius: 50%;
+    border-top: 8px solid #aaa;
+    border-bottom: 8px solid #aaa;
+    width: 32px;
+    height: 32px;
+    animation: spinner 1.5s linear infinite;
+}
+  
+@keyframes spinner {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+

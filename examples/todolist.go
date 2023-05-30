@@ -21,15 +21,17 @@ type TypedContextCallable[T any] func(c *Context, args *T) (*guiapi.Response, er
 func ContextCallable[T any](fn TypedContextCallable[T]) guiapi.Callable {
 	return func(c *guiapi.Context, raw json.RawMessage) (*guiapi.Response, error) {
 		var input T
-		err := json.Unmarshal(raw, &input)
-		if err != nil {
-			return nil, err
+		if raw != nil {
+			err := json.Unmarshal(raw, &input)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		ctx := &Context{Ctx: c,
 			Sess: sessionFromContext(c)}
 
-		err = json.Unmarshal(c.State, &ctx.State)
+		err := json.Unmarshal(c.State, &ctx.State)
 		if err != nil {
 			return nil, err
 		}

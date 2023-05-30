@@ -1,0 +1,8 @@
+.todo-list li.editing .view {
+    display: block;
+}
+
+.biglink {
+    font-size: 1rem;
+}
+

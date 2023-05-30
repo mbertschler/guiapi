@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"sort"
 	"sync"
 	"time"
 
@@ -26,10 +27,19 @@ func (r *ReportsDB) All() []*Report {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	out := make([]*Report, 0, len(r.reports))
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].Started.Before(out[j].Started)
+	})
 	for _, report := range r.reports {
 		out = append(out, report)
 	}
 	return out
+}
+
+func (r *ReportsDB) Update(fn func(reports map[string]*Report)) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	fn(r.reports)
 }
 
 func (r *ReportsDB) Set(report *Report) {
@@ -72,8 +82,9 @@ func (r *Reports) Component() *guiapi.ComponentConfig {
 	return &guiapi.ComponentConfig{
 		Name: "Reports",
 		Actions: map[string]guiapi.Callable{
-			"Start": ContextCallable(r.Start),
-			"Stop":  ContextCallable(r.Stop),
+			"Start":   ContextCallable(r.Start),
+			"Cancel":  ContextCallable(r.Cancel),
+			"Refresh": ContextCallable(r.Refresh),
 		},
 		Pages: map[string]guiapi.PageFunc{
 			"/reports":    r.IndexPage,
@@ -120,22 +131,16 @@ func (r *Reports) IndexPage(ctx *guiapi.Context) (guiapi.Page, error) {
 }
 
 func (r *Reports) indexBlock(ctx *guiapi.Context) (html.Block, error) {
-	reports := r.DB.All()
-	var items html.Blocks
-	for _, report := range reports {
-		text := fmt.Sprintf("%s: %s %v", report.ID, report.Status, report.Started)
-		items.Add(html.Li(nil, html.Text(text)))
-	}
-
-	block := html.Ul(nil, items)
-	if len(reports) == 0 {
-		block = html.P(nil, html.Text("No reports yet."))
-	}
 	main := html.Main(attr.Id("reports"),
 		html.H1(nil, html.Text("Reports")),
 		html.P(nil, html.Text("This is a demo for reports that take a long time to complete.")),
 		html.H3(nil, html.Text("All Reports")),
-		block,
+		r.allReportsBlock(ctx),
+		html.P(nil, html.Text("Refreshing is very slow, it takes 2 seconds. That's why we show you a spinner.")),
+		html.Div(nil,
+			html.Button(attr.Class("ga").Attr("ga-on", "click").Attr("ga-func", "Reports.onRefresh"), html.Text("Refresh")),
+			html.Span(attr.Id("refresh-spinner").Class("spinner").Style("display:none;")),
+		),
 		html.H3(nil, html.Text("New Report")),
 		html.Div(nil, html.Input(attr.Class("new-report").Name("id").Placeholder("Give the new report a name").Type("text"))),
 		html.Div(nil, html.Button(attr.Class("ga").Attr("ga-on", "click").Attr("ga-action", "Reports.Start").Attr("ga-values", ".new-report"), html.Text("Start"))),
@@ -143,10 +148,29 @@ func (r *Reports) indexBlock(ctx *guiapi.Context) (html.Block, error) {
 	return main, nil
 }
 
+func (r *Reports) allReportsBlock(ctx *guiapi.Context) html.Block {
+	reports := r.DB.All()
+	var items html.Blocks
+	for _, report := range reports {
+		text := fmt.Sprintf(": %s %v", report.Status, report.Started)
+		items.Add(html.Li(nil,
+			html.A(attr.Href("/report/"+report.ID).Class("ga").Attr("ga-link", nil), html.Text(report.ID)),
+			html.Text(text),
+		))
+	}
+
+	block := html.Ul(attr.Id("all-reports"), items)
+	if len(reports) == 0 {
+		block = html.P(attr.Id("all-reports"), html.Text("No reports yet."))
+	}
+	return block
+}
+
 func (r *Reports) ReportPage(ctx *guiapi.Context) (guiapi.Page, error) {
 	id := ctx.Params.ByName("id")
 	report := r.DB.Get(id)
-	main := html.Main(nil,
+	main := html.Main(attr.Id("reports"),
+		html.A(attr.Href("/reports").Class("ga").Attr("ga-link", nil), html.Text("< All Reports")),
 		html.H1(nil, html.Text("Report "+id)),
 		html.P(nil, html.Text("Blocks is a framework for building web applications in Go.")),
 		html.P(nil, html.Text(fmt.Sprintf("%q: %+v", id, report))),
@@ -166,11 +190,12 @@ func (r *Reports) Start(ctx *Context, args *ReportsArgs) (*guiapi.Response, erro
 		Status:  ReportStatusStarted,
 	}
 	r.DB.Set(report)
-	return nil, nil
+	block := r.allReportsBlock(ctx.Ctx)
+	return guiapi.ReplaceElement("#all-reports", block)
 }
 
-func (r *Reports) Stop(ctx *Context, args *ReportsArgs) (*guiapi.Response, error) {
-	log.Printf("Reports.Stop %+v", args)
+func (r *Reports) Cancel(ctx *Context, args *ReportsArgs) (*guiapi.Response, error) {
+	log.Printf("Reports.Cancel %+v", args)
 	report := &Report{
 		ID:      args.ID,
 		Started: time.Now(),
@@ -178,4 +203,10 @@ func (r *Reports) Stop(ctx *Context, args *ReportsArgs) (*guiapi.Response, error
 	}
 	r.DB.Set(report)
 	return nil, nil
+}
+
+func (r *Reports) Refresh(ctx *Context, args *NoArgs) (*guiapi.Response, error) {
+	time.Sleep(2 * time.Second)
+	block := r.allReportsBlock(ctx.Ctx)
+	return guiapi.ReplaceElement("#all-reports", block)
 }

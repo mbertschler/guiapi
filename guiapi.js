@@ -2,10 +2,17 @@ export var callableFunctions = {}
 
 export function registerFunctions(object) {
     for (const [key, value] of Object.entries(object)) {
-        if (typeof value !== 'function') {
+        if (typeof value === 'function') {
+            callableFunctions[key] = value
             continue
         }
-        callableFunctions[key] = value
+        if (typeof value === 'object') {
+            for (const [subkey, subvalue] of Object.entries(value)) {
+                callableFunctions[key + "." + subkey] = subvalue
+            }
+            continue
+        }
+        console.warn("registerFunctions: unknown type", key, value)
     }
 }
 
@@ -224,7 +231,7 @@ function hydrateLink(el) {
                 url,
                 oldState: { ...state },
             }
-            window.history.pushState(pushedState, "", el.href)
+            window.history.pushState(pushedState, "", url)
         })
         e.preventDefault()
         e.stopPropagation()

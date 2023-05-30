@@ -123,7 +123,6 @@ func (h *Handler) process(c *Context, req *Request) *Response {
 			Code:    "undefinedFunction",
 			Message: fmt.Sprint(req.Name, " is not defined"),
 		}
-
 	} else {
 		c.State = req.State
 		r, err := fn(c, req.Args)
