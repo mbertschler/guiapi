@@ -22,6 +22,7 @@ func New(middleware Middleware) *Server {
 		middleware: middleware,
 	}
 	s.router.POST("/guiapi", s.wrapMiddleware(s.guiapi.Handle))
+	s.router.GET("/guiapi/ws", s.wrapMiddleware(s.guiapi.websocketHandler))
 	return s
 }
 

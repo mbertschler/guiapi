@@ -1,3 +1,5 @@
+import { websocketDemo } from "./websocket.js"
+
 export var callableFunctions = {}
 
 export function registerFunctions(object) {
@@ -249,6 +251,7 @@ export function setupGuiapi(options) {
     }
     hydrate()
     setupHistory()
+    websocketDemo()
 }
 
 function setupHistory() {

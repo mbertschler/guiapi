@@ -6,6 +6,10 @@ require (
 	github.com/evanw/esbuild v0.17.19
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/mbertschler/blocks v1.0.1-0.20230507175603-88b8665a5719
+	nhooyr.io/websocket v1.8.7
 )
 
-require golang.org/x/sys v0.8.0 // indirect
+require (
+	github.com/klauspost/compress v1.10.3 // indirect
+	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8 // indirect
+)
