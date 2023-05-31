@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"sort"
 	"sync"
 	"time"
@@ -27,12 +26,12 @@ func (r *ReportsDB) All() []*Report {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	out := make([]*Report, 0, len(r.reports))
-	sort.Slice(out, func(i, j int) bool {
-		return out[i].Started.Before(out[j].Started)
-	})
 	for _, report := range r.reports {
 		out = append(out, report)
 	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].Started.Before(out[j].Started)
+	})
 	return out
 }
 
@@ -183,30 +182,26 @@ type ReportsArgs struct {
 }
 
 func (r *Reports) Start(ctx *Context, args *ReportsArgs) (*guiapi.Response, error) {
-	log.Printf("Reports.Start %+v", args)
 	report := &Report{
 		ID:      args.ID,
 		Started: time.Now(),
 		Status:  ReportStatusStarted,
 	}
 	r.DB.Set(report)
-	block := r.allReportsBlock(ctx.Ctx)
-	return guiapi.ReplaceElement("#all-reports", block)
+	return guiapi.ReplaceElement("#all-reports", r.allReportsBlock(ctx.Ctx))
 }
 
 func (r *Reports) Cancel(ctx *Context, args *ReportsArgs) (*guiapi.Response, error) {
-	log.Printf("Reports.Cancel %+v", args)
-	report := &Report{
-		ID:      args.ID,
-		Started: time.Now(),
-		Status:  ReportStatusCancelled,
-	}
-	r.DB.Set(report)
-	return nil, nil
+	r.DB.Update(func(reports map[string]*Report) {
+		report := reports[args.ID]
+		if report.Status == ReportStatusStarted {
+			report.Status = ReportStatusCancelled
+		}
+	})
+	return guiapi.ReplaceElement("#all-reports", r.allReportsBlock(ctx.Ctx))
 }
 
 func (r *Reports) Refresh(ctx *Context, args *NoArgs) (*guiapi.Response, error) {
 	time.Sleep(2 * time.Second)
-	block := r.allReportsBlock(ctx.Ctx)
-	return guiapi.ReplaceElement("#all-reports", block)
+	return guiapi.ReplaceElement("#all-reports", r.allReportsBlock(ctx.Ctx))
 }

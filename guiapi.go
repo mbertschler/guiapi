@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/url"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/mbertschler/blocks/html"
@@ -145,7 +146,20 @@ func (h *Handler) process(c *Context, req *Request) *Response {
 }
 
 func (h *Handler) processURL(c *Context, req *Request) {
-	handle, params, _ := h.Router.Lookup("GET", req.URL)
+	url, err := url.Parse(req.URL)
+	if err != nil {
+		log.Println("guiapi: error parsing url:", err)
+		c.Writer.WriteHeader(400)
+		c.Writer.Write([]byte(`{"error":"400 bad request"}`))
+		return
+	}
+	handle, params, _ := h.Router.Lookup("GET", url.Path)
+	if handle == nil {
+		log.Println("guiapi: no handler found for", req.URL)
+		c.Writer.WriteHeader(404)
+		c.Writer.Write([]byte(`{"error":"404 page not found"}`))
+		return
+	}
 	handle(c.Writer, c.Request, params)
 }
 

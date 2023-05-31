@@ -218,7 +218,7 @@ function hydrateLink(el) {
     el.addEventListener("click", function (e) {
         if (originalState === null) {
             originalState = {
-                url,
+                url: window.location.pathname + window.location.search,
                 oldState: { ...state },
             }
         }
