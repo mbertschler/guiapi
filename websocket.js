@@ -53,6 +53,8 @@ class Stream {
     }
 
     onclose = (event) => {
+        this.open = false
+        this.socket = null
         console.log("websocket closed:", event);
         if (this.closed) {
             return
@@ -65,6 +67,7 @@ class Stream {
     }
 
     onerror = (event) => {
+        // this.open = false ???
         console.log("websocket error:", event);
     }
 }
