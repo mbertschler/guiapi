@@ -1,4 +1,4 @@
-import { websocketDemo } from "./websocket.js"
+import { handleStream } from "./websocket.js"
 
 export var callableFunctions = {}
 
@@ -68,7 +68,7 @@ function guiapiRequest(req, callback) {
     })
 }
 
-function handleResponse(r, callback) {
+export function handleResponse(r, callback) {
     if (r.State) {
         state = r.State
     }
@@ -112,6 +112,9 @@ function handleResponse(r, callback) {
                 console.warn("function call not implemented :(", call)
             }
         }
+    }
+    if (r.Stream) {
+        handleStream(r.Stream)
     }
     hydrate()
     callback(null)
@@ -249,9 +252,11 @@ export function setupGuiapi(options) {
     if (window.state) {
         state = window.state
     }
+    if (window.stream) {
+        handleStream(window.stream)
+    }
     hydrate()
     setupHistory()
-    websocketDemo()
 }
 
 function setupHistory() {

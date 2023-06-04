@@ -11,14 +11,16 @@ import (
 )
 
 type App struct {
-	DB     *DB
-	Server *guiapi.Server
+	DB      *DB
+	Server  *guiapi.Server
+	Reports *Reports
 }
 
 func NewApp() *App {
 	app := &App{}
 	app.DB = NewDB()
-	app.Server = guiapi.New(app.DB.sessionMiddleware)
+	app.Reports = NewReportsComponent()
+	app.Server = guiapi.New(app.DB.sessionMiddleware, app.Reports.StreamRouter)
 	return app
 }
 
@@ -39,7 +41,7 @@ func main() {
 
 	app.Server.RegisterComponent(&Counter{DB: app.DB})
 	app.Server.RegisterComponent(&TodoList{DB: app.DB})
-	app.Server.RegisterComponent(NewReportsComponent())
+	app.Server.RegisterComponent(app.Reports)
 
 	var dist fs.FS = distEmbedFS
 	if guiapi.EsbuildAvailable() {

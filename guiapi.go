@@ -11,10 +11,11 @@ import (
 )
 
 // NewGuiapi returns an empty handler
-func NewGuiapi() *Handler {
+func NewGuiapi(sr StreamRouter) *Handler {
 	return &Handler{
-		Functions: map[string]Callable{},
-		Router:    httprouter.New(),
+		Functions:    map[string]Callable{},
+		Router:       httprouter.New(),
+		StreamRouter: sr,
 	}
 }
 
@@ -177,8 +178,9 @@ type Request struct {
 }
 
 type Handler struct {
-	Router    *httprouter.Router
-	Functions map[string]Callable
+	Router       *httprouter.Router
+	Functions    map[string]Callable
+	StreamRouter StreamRouter
 }
 
 type HandlerFunc func(*Context)
@@ -190,11 +192,12 @@ type Response struct {
 	// Name of the action that was called
 	Name string `json:",omitempty"`
 	// URL that was loaded.
-	URL   string       `json:",omitempty"`
-	Error *Error       `json:",omitempty"`
-	HTML  []HTMLUpdate `json:",omitempty"` // DOM updates to apply
-	JS    []JSCall     `json:",omitempty"` // JS calls to execute
-	State any          `json:",omitempty"` // State to pass back to the browser
+	URL    string       `json:",omitempty"`
+	Error  *Error       `json:",omitempty"`
+	HTML   []HTMLUpdate `json:",omitempty"` // DOM updates to apply
+	JS     []JSCall     `json:",omitempty"` // JS calls to execute
+	State  any          `json:",omitempty"` // State to pass back to the browser
+	Stream any          `json:",omitempty"` // Stream to subscribe to via websocket
 }
 
 type Error struct {

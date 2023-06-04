@@ -15,10 +15,10 @@ type Server struct {
 	middleware Middleware
 }
 
-func New(middleware Middleware) *Server {
+func New(middleware Middleware, streamRouter StreamRouter) *Server {
 	s := &Server{
 		router:     httprouter.New(),
-		guiapi:     NewGuiapi(),
+		guiapi:     NewGuiapi(streamRouter),
 		middleware: middleware,
 	}
 	s.router.POST("/guiapi", s.wrapMiddleware(s.guiapi.Handle))

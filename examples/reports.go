@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"sort"
 	"sync"
 	"time"
@@ -11,9 +13,82 @@ import (
 	"github.com/mbertschler/guiapi"
 )
 
+type ChangeType int
+
+const (
+	ChangeCreate ChangeType = 1
+	ChangeUpdate ChangeType = 2
+	ChangeDelete ChangeType = 3
+)
+
+func (c ChangeType) String() string {
+	switch c {
+	case ChangeCreate:
+		return "create"
+	case ChangeUpdate:
+		return "update"
+	case ChangeDelete:
+		return "delete"
+	}
+	return "unknown"
+}
+
+type ReportsChange func(change ChangeType, report *Report)
+
 type ReportsDB struct {
-	lock    sync.Mutex
-	reports map[string]*Report
+	transaction   sync.Mutex
+	lock          sync.Mutex
+	globalUpdates map[int64]ReportsChange
+	idUpdates     map[string]map[int64]ReportsChange
+	reports       map[string]*Report
+}
+
+func (r *ReportsDB) AddGlobalChangeListener(fn ReportsChange) int64 {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	if r.globalUpdates == nil {
+		r.globalUpdates = make(map[int64]ReportsChange)
+	}
+	listenerID := time.Now().UnixNano()
+	r.globalUpdates[listenerID] = fn
+	return listenerID
+}
+
+func (r *ReportsDB) RemoveGlobalChangeListener(id int64) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	delete(r.globalUpdates, id)
+}
+
+func (r *ReportsDB) AddIDChangeListener(id string, fn ReportsChange) int64 {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	if r.idUpdates == nil {
+		r.idUpdates = make(map[string]map[int64]ReportsChange)
+	}
+	if r.idUpdates[id] == nil {
+		r.idUpdates[id] = make(map[int64]ReportsChange)
+	}
+	listenerID := time.Now().UnixNano()
+	r.idUpdates[id][listenerID] = fn
+	return listenerID
+}
+
+func (r *ReportsDB) RemoveIDChangeListener(id string, listenerID int64) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	delete(r.idUpdates[id], listenerID)
+}
+
+func (r *ReportsDB) notify(change ChangeType, report *Report) {
+	r.lock.Unlock()
+	defer r.lock.Lock()
+	for _, fn := range r.globalUpdates {
+		fn(change, report)
+	}
+	for _, fn := range r.idUpdates[report.ID] {
+		fn(change, report)
+	}
 }
 
 func (r *ReportsDB) Get(id string) *Report {
@@ -35,22 +110,44 @@ func (r *ReportsDB) All() []*Report {
 	return out
 }
 
-func (r *ReportsDB) Update(fn func(reports map[string]*Report)) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-	fn(r.reports)
+func (r *ReportsDB) Transaction(fn func() error) error {
+	r.transaction.Lock()
+	defer r.transaction.Unlock()
+	return fn()
 }
 
-func (r *ReportsDB) Set(report *Report) {
+func (r *ReportsDB) Create(report *Report) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
+	if r.reports[report.ID] != nil {
+		return fmt.Errorf("report with id %s already exists", report.ID)
+	}
 	r.reports[report.ID] = report
+	r.notify(ChangeCreate, report)
+	return nil
 }
 
-func (r *ReportsDB) Delete(id string) {
+func (r *ReportsDB) Update(report *Report) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
+	if r.reports[report.ID] == nil {
+		return fmt.Errorf("report with id %s doesn't exists", report.ID)
+	}
+	r.reports[report.ID] = report
+	r.notify(ChangeUpdate, report)
+	return nil
+}
+
+func (r *ReportsDB) Delete(id string) error {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	report := r.reports[id]
+	if report == nil {
+		return fmt.Errorf("report with id %s doesn't exists", report.ID)
+	}
 	delete(r.reports, id)
+	r.notify(ChangeDelete, report)
+	return nil
 }
 
 func NewReportsComponent() *Reports {
@@ -94,9 +191,19 @@ func (r *Reports) Component() *guiapi.ComponentConfig {
 
 type ReportsPage struct {
 	Content html.Block
+	Stream  ReportsStream
+}
+
+type ReportsStream struct {
+	ID       string
+	Overview bool
 }
 
 func (r *ReportsPage) HTML() (html.Block, error) {
+	stream, err := json.Marshal(r.Stream)
+	if err != nil {
+		return nil, err
+	}
 	return html.Blocks{
 		html.Doctype("html"),
 		html.Html(nil,
@@ -111,6 +218,7 @@ func (r *ReportsPage) HTML() (html.Block, error) {
 				html.Hr(nil),
 				html.A(attr.Href("/"), html.Text("TodoMVC Example")),
 				html.A(attr.Href("/counter"), html.Text("Counter Example")),
+				html.Script(nil, html.JS("var stream = "+string(stream)+";")), // before bundle, otherwise it isn't defined
 				html.Script(attr.Src("/dist/bundle.js")),
 			),
 		),
@@ -118,7 +226,9 @@ func (r *ReportsPage) HTML() (html.Block, error) {
 }
 
 func (r *ReportsPage) Update() (*guiapi.Response, error) {
-	return guiapi.ReplaceElement("#reports", r.Content)
+	res, err := guiapi.ReplaceElement("#reports", r.Content)
+	res.Stream = r.Stream
+	return res, err
 }
 
 func (r *Reports) IndexPage(ctx *guiapi.Context) (guiapi.Page, error) {
@@ -126,7 +236,10 @@ func (r *Reports) IndexPage(ctx *guiapi.Context) (guiapi.Page, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ReportsPage{Content: main}, nil
+	return &ReportsPage{
+		Content: main,
+		Stream:  ReportsStream{Overview: true},
+	}, nil
 }
 
 func (r *Reports) indexBlock(ctx *guiapi.Context) (html.Block, error) {
@@ -134,7 +247,7 @@ func (r *Reports) indexBlock(ctx *guiapi.Context) (html.Block, error) {
 		html.H1(nil, html.Text("Reports")),
 		html.P(nil, html.Text("This is a demo for reports that take a long time to complete.")),
 		html.H3(nil, html.Text("All Reports")),
-		r.allReportsBlock(ctx),
+		r.allReportsBlock(),
 		html.P(nil, html.Text("Refreshing is very slow, it takes 2 seconds. That's why we show you a spinner.")),
 		html.Div(nil,
 			html.Button(attr.Class("ga").Attr("ga-on", "click").Attr("ga-func", "Reports.onRefresh"), html.Text("Refresh")),
@@ -147,11 +260,11 @@ func (r *Reports) indexBlock(ctx *guiapi.Context) (html.Block, error) {
 	return main, nil
 }
 
-func (r *Reports) allReportsBlock(ctx *guiapi.Context) html.Block {
+func (r *Reports) allReportsBlock() html.Block {
 	reports := r.DB.All()
 	var items html.Blocks
 	for _, report := range reports {
-		text := fmt.Sprintf(": %s %v", report.Status, report.Started)
+		text := fmt.Sprintf(": %s %s", report.Status, report.Started.Format(time.DateTime))
 		items.Add(html.Li(nil,
 			html.A(attr.Href("/report/"+report.ID).Class("ga").Attr("ga-link", nil), html.Text(report.ID)),
 			html.Text(text),
@@ -167,14 +280,29 @@ func (r *Reports) allReportsBlock(ctx *guiapi.Context) html.Block {
 
 func (r *Reports) ReportPage(ctx *guiapi.Context) (guiapi.Page, error) {
 	id := ctx.Params.ByName("id")
-	report := r.DB.Get(id)
 	main := html.Main(attr.Id("reports"),
 		html.A(attr.Href("/reports").Class("ga").Attr("ga-link", nil), html.Text("< All Reports")),
-		html.H1(nil, html.Text("Report "+id)),
-		html.P(nil, html.Text("Blocks is a framework for building web applications in Go.")),
-		html.P(nil, html.Text(fmt.Sprintf("%q: %+v", id, report))),
+		r.singleReportBlock(id),
 	)
-	return &ReportsPage{Content: main}, nil
+	return &ReportsPage{
+		Content: main,
+		Stream:  ReportsStream{ID: id},
+	}, nil
+}
+
+func (r *Reports) singleReportBlock(id string) html.Block {
+	report := r.DB.Get(id)
+	if report == nil {
+		return html.Div(attr.Id("single-report"), html.H1(nil, html.Text("Report "+id)),
+			html.P(nil, html.Text(fmt.Sprintf("Report with ID %q doesn't exist", id))),
+		)
+	}
+	return html.Div(attr.Id("single-report"), html.H1(nil, html.Text("Report "+id)),
+		html.P(nil, html.Text("Blocks is a framework for building web applications in Go.")),
+		html.Div(nil, html.Text(fmt.Sprintf("ID: %q", id))),
+		html.Div(nil, html.Text(fmt.Sprintf("Status: %s", report.Status))),
+		html.Div(nil, html.Text(fmt.Sprintf("Started: %s", report.Started.Format(time.DateTime)))),
+	)
 }
 
 type ReportsArgs struct {
@@ -187,21 +315,41 @@ func (r *Reports) Start(ctx *Context, args *ReportsArgs) (*guiapi.Response, erro
 		Started: time.Now(),
 		Status:  ReportStatusStarted,
 	}
-	r.DB.Set(report)
-	return guiapi.ReplaceElement("#all-reports", r.allReportsBlock(ctx.Ctx))
+	err := r.DB.Create(report)
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		// run the actual report
+		time.Sleep(5 * time.Second)
+		err := r.DB.Transaction(func() error {
+			report := r.DB.Get(args.ID)
+			report.Status = ReportStatusFinished
+			log.Println("finished report", report.ID)
+			return r.DB.Update(report)
+		})
+		if err != nil {
+			log.Println(err)
+		}
+	}()
+	return guiapi.ReplaceElement("#all-reports", r.allReportsBlock())
 }
 
 func (r *Reports) Cancel(ctx *Context, args *ReportsArgs) (*guiapi.Response, error) {
-	r.DB.Update(func(reports map[string]*Report) {
-		report := reports[args.ID]
+	err := r.DB.Transaction(func() error {
+		report := r.DB.Get(args.ID)
 		if report.Status == ReportStatusStarted {
 			report.Status = ReportStatusCancelled
 		}
+		return r.DB.Update(report)
 	})
-	return guiapi.ReplaceElement("#all-reports", r.allReportsBlock(ctx.Ctx))
+	if err != nil {
+		return nil, err
+	}
+	return guiapi.ReplaceElement("#all-reports", r.allReportsBlock())
 }
 
 func (r *Reports) Refresh(ctx *Context, args *NoArgs) (*guiapi.Response, error) {
 	time.Sleep(2 * time.Second)
-	return guiapi.ReplaceElement("#all-reports", r.allReportsBlock(ctx.Ctx))
+	return guiapi.ReplaceElement("#all-reports", r.allReportsBlock())
 }
