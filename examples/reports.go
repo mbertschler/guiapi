@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/julienschmidt/httprouter"
 	"github.com/mbertschler/blocks/html"
 	"github.com/mbertschler/blocks/html/attr"
 	"github.com/mbertschler/guiapi"
@@ -332,7 +333,14 @@ func (r *Reports) Start(ctx *Context, args *ReportsArgs) (*guiapi.Response, erro
 			log.Println(err)
 		}
 	}()
-	return guiapi.ReplaceElement("#all-reports", r.allReportsBlock())
+	ctx.Ctx.Params = httprouter.Params{httprouter.Param{Key: "id", Value: report.ID}}
+	page, err := r.ReportPage(ctx.Ctx)
+	if err != nil {
+		return nil, err
+	}
+	update, err := page.Update()
+	update.URL = "/report/" + report.ID
+	return update, err
 }
 
 func (r *Reports) Cancel(ctx *Context, args *ReportsArgs) (*guiapi.Response, error) {

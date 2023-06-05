@@ -33,7 +33,7 @@ func (h *Handler) websocketHandler(c *Context) {
 	ch := make(chan *Response, 1)
 	defer close(ch)
 
-	id := time.Now().UnixNano() % 1000
+	id := time.Now().UnixMilli() % 1000
 
 	go func() {
 		defer log.Println("exit websocket writer", id)

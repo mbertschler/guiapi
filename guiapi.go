@@ -138,9 +138,8 @@ func (h *Handler) process(c *Context, req *Request) *Response {
 			if err == nil {
 				res.Error = r.Error
 			}
-			res.HTML = r.HTML
-			res.JS = r.JS
-			res.State = r.State
+			res = *r
+			res.Name = req.Name
 		}
 	}
 	return &res

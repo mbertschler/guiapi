@@ -8,7 +8,7 @@ Guiapi
 - [x] something for long running requests, loading indicator?
 - [x] debounce as a feature *ga-block*?
 - [x] websocket for server side updates
-- [ ] server side instant redirects 
+- [x] server side instant redirects 
 - [ ] *ga-done* for the guiapi callback?
 - [ ] *ga-unmount* for cleanup functions
 - [ ] global error handler

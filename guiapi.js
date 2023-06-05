@@ -60,8 +60,12 @@ function guiapiRequest(req, callback) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(req)
     }).then((response) => {
-        response.json().then(r => handleResponse(r, callback))
-            .catch(r => console.error('response.json() error:', r))
+        response.json().then(r => {
+            if (debugGuiapi) {
+                console.log("guiapi response:", r)
+            }
+            handleResponse(r, callback)
+        }).catch(r => console.error('response.json() error:', r))
     }).catch((reason) => {
         console.error('fetch() error:', reason)
         callback(reason)
@@ -69,6 +73,7 @@ function guiapiRequest(req, callback) {
 }
 
 export function handleResponse(r, callback) {
+
     if (r.State) {
         state = r.State
     }
@@ -115,6 +120,9 @@ export function handleResponse(r, callback) {
     }
     if (r.Stream) {
         handleStream(r.Stream)
+    }
+    if (r.URL) {
+        addPageToHistory(r.URL)
     }
     hydrate()
     callback(null)
@@ -221,28 +229,33 @@ let originalState = null
 function hydrateLink(el) {
     var url = el.attributes.getNamedItem("href").value
     el.addEventListener("click", function (e) {
-        if (originalState === null) {
-            originalState = {
-                url: window.location.pathname + window.location.search,
-                oldState: { ...state },
-            }
-        }
         guiapiPage(url, err => {
             if (err) {
                 console.error("error", err)
                 return
             }
-            const pushedState = {
-                url,
-                oldState: { ...state },
-            }
-            window.history.pushState(pushedState, "", url)
+            addPageToHistory(url)
         })
         e.preventDefault()
         e.stopPropagation()
         return false
     })
     el.classList.remove("ga")
+}
+
+function addPageToHistory(url) {
+    console.log("addPageToHistory", url, state)
+    if (originalState === null) {
+        originalState = {
+            url: window.location.pathname + window.location.search,
+            oldState: { ...state },
+        }
+    }
+    const pushedState = {
+        url,
+        oldState: { ...state },
+    }
+    window.history.pushState(pushedState, "", url)
 }
 
 export function setupGuiapi(options) {

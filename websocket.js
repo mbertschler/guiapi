@@ -75,7 +75,7 @@ class Stream {
 const streamHandler = new Stream("ws://localhost:8000/guiapi/ws");
 
 export function handleStream(stream) {
-    console.log("guiapi stream:", stream)
+    console.log("guiapi handleStream:", stream)
     streamHandler.subscribe(stream)
 }
 
