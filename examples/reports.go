@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"sort"
@@ -179,9 +180,10 @@ func (r *Reports) Component() *guiapi.ComponentConfig {
 	return &guiapi.ComponentConfig{
 		Name: "Reports",
 		Actions: map[string]guiapi.Callable{
-			"Start":   ContextCallable(r.Start),
-			"Cancel":  ContextCallable(r.Cancel),
-			"Refresh": ContextCallable(r.Refresh),
+			"Start":     ContextCallable(r.Start),
+			"Cancel":    ContextCallable(r.Cancel),
+			"Refresh":   ContextCallable(r.Refresh),
+			"SomeError": ContextCallable(r.SomeError),
 		},
 		Pages: map[string]guiapi.PageFunc{
 			"/reports":    r.IndexPage,
@@ -219,6 +221,7 @@ func (r *ReportsPage) HTML() (html.Block, error) {
 				html.Hr(nil),
 				html.A(attr.Href("/"), html.Text("TodoMVC Example")),
 				html.A(attr.Href("/counter"), html.Text("Counter Example")),
+				html.Div(attr.Id("error-box"), html.Text("there is an error message")),
 				html.Script(nil, html.JS("var stream = "+string(stream)+";")), // before bundle, otherwise it isn't defined
 				html.Script(attr.Src("/dist/bundle.js")),
 			),
@@ -254,6 +257,7 @@ func (r *Reports) indexBlock(ctx *guiapi.Context) (html.Block, error) {
 			html.Button(attr.Class("ga").Attr("ga-on", "click").Attr("ga-func", "Reports.onRefresh"), html.Text("Refresh")),
 			html.Span(attr.Id("refresh-spinner").Class("spinner").Style("display:none;")),
 		),
+		html.Button(attr.Class("ga").Attr("ga-on", "click").Attr("ga-action", "Reports.SomeError"), html.Text("Fake Error")),
 		html.H3(nil, html.Text("New Report")),
 		html.Div(nil, html.Input(attr.Class("new-report").Name("id").Placeholder("Give the new report a name").Type("text"))),
 		html.Div(nil, html.Button(attr.Class("ga").Attr("ga-on", "click").Attr("ga-action", "Reports.Start").Attr("ga-values", ".new-report"), html.Text("Start"))),
@@ -360,4 +364,8 @@ func (r *Reports) Cancel(ctx *Context, args *ReportsArgs) (*guiapi.Response, err
 func (r *Reports) Refresh(ctx *Context, args *NoArgs) (*guiapi.Response, error) {
 	time.Sleep(2 * time.Second)
 	return guiapi.ReplaceElement("#all-reports", r.allReportsBlock())
+}
+
+func (r *Reports) SomeError(ctx *Context, args *NoArgs) (*guiapi.Response, error) {
+	return nil, errors.New("something bad happened (not really)")
 }

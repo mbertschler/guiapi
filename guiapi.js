@@ -73,13 +73,12 @@ function guiapiRequest(req, callback) {
 }
 
 export function handleResponse(r, callback) {
-
     if (r.State) {
         state = r.State
     }
     if (r.Error) {
         console.error("[" + r.Error.Code + "]", r.Error.Message, r.Error)
-        window.alert("guiapi error, check console")
+        errorHandler(r.Error)
         callback(r.Error)
         return
     }
@@ -258,9 +257,14 @@ function addPageToHistory(url) {
     window.history.pushState(pushedState, "", url)
 }
 
+let errorHandler = (err) => { }
+
 export function setupGuiapi(options) {
     if (options && options.debug) {
         debugGuiapi = true
+    }
+    if (options && options.errorHandler) {
+        errorHandler = options.errorHandler
     }
     if (window.state) {
         state = window.state
