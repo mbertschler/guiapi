@@ -10,7 +10,7 @@ Guiapi
 - [x] websocket for server side updates
 - [x] server side instant redirects
 - [x] global error handler
-- [ ] check bundling API again
+- [x] check bundling API again
 - [ ] page only init stuff needs nicer API (what is put in <script> globals)
 - [ ] tests
 - [ ] documentation

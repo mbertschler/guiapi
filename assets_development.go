@@ -4,7 +4,6 @@ package guiapi
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/evanw/esbuild/pkg/cli"
 )
@@ -13,16 +12,27 @@ func EsbuildAvailable() bool {
 	return true
 }
 
-func BuildAssets() error {
-	log.Println("building browser assets")
-	options := []string{
-		"js/main.js",
-		"--bundle",
-		"--outfile=dist/bundle.js",
-		"--minify",
-		"--sourcemap",
+func BuildAssets(options BuildOptions) error {
+	flags := []string{
+		options.Infile,
+		"--outfile=" + options.Outfile,
 	}
-	returnCode := cli.Run(options)
+	if options.Bundle {
+		flags = append(flags, "--bundle")
+	}
+	if options.Minify {
+		flags = append(flags, "--minify")
+	}
+	if options.Sourcemap {
+		flags = append(flags, "--sourcemap")
+	}
+	if options.Log {
+		flags = append(flags, "--log-level=info")
+	} else {
+		flags = append(flags, "--log-level=warning")
+	}
+	flags = append(flags, options.EsbuildArgs...)
+	returnCode := cli.Run(flags)
 	if returnCode != 0 {
 		return fmt.Errorf("esbuild failed with code %d", returnCode)
 	}
