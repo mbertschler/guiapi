@@ -7,7 +7,7 @@ import (
 	"net/url"
 
 	"github.com/julienschmidt/httprouter"
-	"github.com/mbertschler/blocks/html"
+	"github.com/mbertschler/html"
 )
 
 // NewGuiapi returns an empty handler

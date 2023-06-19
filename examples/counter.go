@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/mbertschler/blocks/html"
-	"github.com/mbertschler/blocks/html/attr"
 	"github.com/mbertschler/guiapi"
+	"github.com/mbertschler/html"
+	"github.com/mbertschler/html/attr"
 )
 
 type Counter struct {

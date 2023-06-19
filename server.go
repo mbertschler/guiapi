@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
-	"github.com/mbertschler/blocks/html"
+	"github.com/mbertschler/html"
 )
 
 type Server struct {
