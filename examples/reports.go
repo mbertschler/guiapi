@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"sort"
 	"sync"
@@ -202,12 +203,12 @@ type ReportsStream struct {
 	Overview bool
 }
 
-func (r *ReportsPage) HTML() (html.Block, error) {
+func (r *ReportsPage) WriteHTML(w io.Writer) error {
 	stream, err := json.Marshal(r.Stream)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return html.Blocks{
+	block := html.Blocks{
 		html.Doctype("html"),
 		html.Html(nil,
 			html.Head(nil,
@@ -226,7 +227,8 @@ func (r *ReportsPage) HTML() (html.Block, error) {
 				html.Script(attr.Src("/dist/bundle.js")),
 			),
 		),
-	}, nil
+	}
+	return html.RenderMinified(w, block)
 }
 
 func (r *ReportsPage) Update() (*guiapi.Response, error) {

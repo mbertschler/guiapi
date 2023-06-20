@@ -2,11 +2,11 @@ package guiapi
 
 import (
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
-	"github.com/mbertschler/html"
 )
 
 type Server struct {
@@ -73,7 +73,7 @@ func (s *Server) SetFunc(name string, fn Callable) {
 }
 
 type Page interface {
-	HTML() (html.Block, error)
+	WriteHTML(io.Writer) error
 	Update() (*Response, error)
 }
 
@@ -95,15 +95,9 @@ func (s *Server) page(path string, page PageFunc) {
 			http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		block, err := res.HTML()
+		err = res.WriteHTML(c.Writer)
 		if err != nil {
 			log.Println("page.HTML error:", err)
-			http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		err = html.RenderMinified(c.Writer, block)
-		if err != nil {
-			log.Println("renderMinified error:", err)
 			http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
 			return
 		}

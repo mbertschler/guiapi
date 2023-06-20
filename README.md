@@ -12,5 +12,7 @@ Guiapi
 - [x] global error handler
 - [x] check bundling API again
 - [ ] page only init stuff needs nicer API (what is put in <script> globals)
+- [x] consider removing html coupling from the API
+- [ ] clean up library and examples
 - [ ] tests
 - [ ] documentation

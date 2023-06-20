@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 
 	"github.com/mbertschler/guiapi"
 	"github.com/mbertschler/html"
@@ -30,8 +31,8 @@ type CounterPage struct {
 	Content html.Block
 }
 
-func (c *CounterPage) HTML() (html.Block, error) {
-	return html.Blocks{
+func (c *CounterPage) WriteHTML(w io.Writer) error {
+	block := html.Blocks{
 		html.Doctype("html"),
 		html.Html(nil,
 			html.Head(nil,
@@ -48,7 +49,8 @@ func (c *CounterPage) HTML() (html.Block, error) {
 				html.Script(attr.Src("/dist/bundle.js")),
 			),
 		),
-	}, nil
+	}
+	return html.RenderMinified(w, block)
 }
 
 func (c *CounterPage) Update() (*guiapi.Response, error) {

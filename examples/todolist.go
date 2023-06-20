@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/mbertschler/guiapi"
@@ -53,13 +54,13 @@ type TodoPage struct {
 	State   TodoListState
 }
 
-func (t *TodoPage) HTML() (html.Block, error) {
+func (t *TodoPage) WriteHTML(w io.Writer) error {
 	stateJSON, err := json.Marshal(t.State)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	stateBlock := html.JS("var state = " + string(stateJSON) + ";")
-	return html.Blocks{
+	block := html.Blocks{
 		html.Doctype("html"),
 		html.Html(attr.Lang("en"),
 			html.Head(nil,
@@ -84,8 +85,10 @@ func (t *TodoPage) HTML() (html.Block, error) {
 				html.Script(attr.Src("/dist/bundle.js")),
 			),
 		),
-	}, nil
+	}
+	return html.RenderMinified(w, block)
 }
+
 func (t *TodoPage) Update() (*guiapi.Response, error) {
 	res, err := guiapi.ReplaceContent("#page", t.Content)
 	if err != nil {
