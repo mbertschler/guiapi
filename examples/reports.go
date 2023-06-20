@@ -232,7 +232,8 @@ func (r *ReportsPage) WriteHTML(w io.Writer) error {
 }
 
 func (r *ReportsPage) Update() (*guiapi.Response, error) {
-	res, err := guiapi.ReplaceElement("#reports", r.Content)
+	out, err := html.RenderMinifiedString(r.Content)
+	res := guiapi.ReplaceElement("#reports", out)
 	res.Stream = r.Stream
 	return res, err
 }
@@ -360,12 +361,14 @@ func (r *Reports) Cancel(ctx *Context, args *ReportsArgs) (*guiapi.Response, err
 	if err != nil {
 		return nil, err
 	}
-	return guiapi.ReplaceElement("#all-reports", r.allReportsBlock())
+	out, err := html.RenderMinifiedString(r.allReportsBlock())
+	return guiapi.ReplaceElement("#all-reports", out), err
 }
 
 func (r *Reports) Refresh(ctx *Context, args *NoArgs) (*guiapi.Response, error) {
 	time.Sleep(2 * time.Second)
-	return guiapi.ReplaceElement("#all-reports", r.allReportsBlock())
+	out, err := html.RenderMinifiedString(r.allReportsBlock())
+	return guiapi.ReplaceElement("#all-reports", out), err
 }
 
 func (r *Reports) SomeError(ctx *Context, args *NoArgs) (*guiapi.Response, error) {

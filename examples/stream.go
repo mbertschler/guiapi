@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/mbertschler/guiapi"
+	"github.com/mbertschler/html"
 )
 
 func (r *Reports) StreamRouter(ctx context.Context, msg []byte, res chan<- *guiapi.Response) error {
@@ -24,11 +25,9 @@ func (r *Reports) StreamRouter(ctx context.Context, msg []byte, res chan<- *guia
 
 func (r *Reports) OverviewStream(ctx context.Context, results chan<- *guiapi.Response) error {
 	listener := r.DB.AddGlobalChangeListener(func(change ChangeType, report *Report) {
-		res, err := guiapi.ReplaceElement("#all-reports", r.allReportsBlock())
+		out, err := html.RenderMinifiedString(r.allReportsBlock())
+		res := guiapi.ReplaceElement("#all-reports", out)
 		if err != nil {
-			if res == nil {
-				res = &guiapi.Response{}
-			}
 			res.Error = &guiapi.Error{Message: err.Error()}
 		}
 		results <- res
@@ -41,11 +40,9 @@ func (r *Reports) OverviewStream(ctx context.Context, results chan<- *guiapi.Res
 
 func (r *Reports) DetailStream(ctx context.Context, id string, results chan<- *guiapi.Response) error {
 	listener := r.DB.AddIDChangeListener(id, func(change ChangeType, report *Report) {
-		res, err := guiapi.ReplaceElement("#single-report", r.singleReportBlock(id))
+		out, err := html.RenderMinifiedString(r.singleReportBlock(id))
+		res := guiapi.ReplaceElement("#single-report", out)
 		if err != nil {
-			if res == nil {
-				res = &guiapi.Response{}
-			}
 			res.Error = &guiapi.Error{Message: err.Error()}
 		}
 		results <- res

@@ -54,7 +54,8 @@ func (c *CounterPage) WriteHTML(w io.Writer) error {
 }
 
 func (c *CounterPage) Update() (*guiapi.Response, error) {
-	return guiapi.ReplaceContent("#page", c.Content)
+	out, err := html.RenderMinifiedString(c.Content)
+	return guiapi.ReplaceContent("#page", out), err
 }
 
 func (c *Counter) RenderPage(ctx *guiapi.Context) (guiapi.Page, error) {
@@ -97,7 +98,9 @@ func (c *Counter) Increase(ctx *guiapi.Context, args json.RawMessage) (*guiapi.R
 	if err != nil {
 		return nil, err
 	}
-	return guiapi.ReplaceContent("#count", html.Text(fmt.Sprintf("Current count: %d", counter.Count)))
+
+	out, err := html.RenderMinifiedString(html.Text(fmt.Sprintf("Current count: %d", counter.Count)))
+	return guiapi.ReplaceContent("#count", out), err
 }
 
 func (c *Counter) Decrease(ctx *guiapi.Context, args json.RawMessage) (*guiapi.Response, error) {
@@ -111,5 +114,7 @@ func (c *Counter) Decrease(ctx *guiapi.Context, args json.RawMessage) (*guiapi.R
 	if err != nil {
 		return nil, err
 	}
-	return guiapi.ReplaceContent("#count", html.Text(fmt.Sprintf("Current count: %d", counter.Count)))
+
+	out, err := html.RenderMinifiedString(html.Text(fmt.Sprintf("Current count: %d", counter.Count)))
+	return guiapi.ReplaceContent("#count", out), err
 }

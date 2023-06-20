@@ -90,10 +90,11 @@ func (t *TodoPage) WriteHTML(w io.Writer) error {
 }
 
 func (t *TodoPage) Update() (*guiapi.Response, error) {
-	res, err := guiapi.ReplaceContent("#page", t.Content)
+	out, err := html.RenderMinifiedString(t.Content)
 	if err != nil {
 		return nil, err
 	}
+	res := guiapi.ReplaceContent("#page", out)
 	res.State = t.State
 	return res, nil
 }
@@ -422,7 +423,11 @@ func (t *TodoList) updateTodoList(ctx *Context, fn func(*TodoListProps, *StoredT
 	if err != nil {
 		return nil, err
 	}
-	return guiapi.ReplaceContent(".todoapp", appBlock)
+	out, err := html.RenderMinifiedString(appBlock)
+	if err != nil {
+		return nil, err
+	}
+	return guiapi.ReplaceContent(".todoapp", out), nil
 }
 
 func (t *TodoList) todoListProps(ctx *Context) (*TodoListProps, error) {

@@ -101,7 +101,7 @@ export function handleResponse(r, callback) {
                 case 3:
                     el.insertAdjacentHTML('beforebegin', update.Content)
                     break
-                case 3:
+                case 4:
                     el.insertAdjacentHTML('afterend', update.Content)
                     break
                 default:
