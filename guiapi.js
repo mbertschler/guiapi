@@ -101,6 +101,9 @@ export function handleResponse(r, callback) {
                 case 3:
                     el.insertAdjacentHTML('beforebegin', update.Content)
                     break
+                case 3:
+                    el.insertAdjacentHTML('afterend', update.Content)
+                    break
                 default:
                     console.warn("update type not implemented :(", update)
             }

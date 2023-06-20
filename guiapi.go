@@ -210,6 +210,7 @@ const (
 	HTMLReplaceContent HTMLOp = 1
 	HTMLReplaceElement HTMLOp = 2
 	HTMLInsertBefore   HTMLOp = 3
+	HTMLInsertAfter    HTMLOp = 4
 )
 
 type HTMLUpdate struct {
