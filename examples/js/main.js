@@ -8,6 +8,8 @@ import Reports from "./reports.js"
 guiapi.registerFunctions(TodoList)
 guiapi.registerFunctions(Reports)
 guiapi.setupGuiapi({
+    state: window.state,
+    stream: window.stream,
     debug: true,
     errorHandler: (error) => {
         console.warn("guiapi error handler:", error)

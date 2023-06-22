@@ -59,7 +59,6 @@ func (t *TodoPage) WriteHTML(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	stateBlock := html.JS("var state = " + string(stateJSON) + ";")
 	block := html.Blocks{
 		html.Doctype("html"),
 		html.Html(attr.Lang("en"),
@@ -81,7 +80,7 @@ func (t *TodoPage) WriteHTML(w io.Writer) error {
 					html.P(attr.Class("biglink"), html.A(attr.Href("/counter"), html.Text("Counter Example"))),
 					html.P(attr.Class("biglink"), html.A(attr.Href("/reports"), html.Text("Reports Example"))),
 				),
-				html.Script(attr.Id("state"), stateBlock),
+				html.Script(nil, html.JS("var state = "+string(stateJSON)+";")),
 				html.Script(attr.Src("/dist/bundle.js")),
 			),
 		),

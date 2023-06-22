@@ -151,6 +151,7 @@ function hydrate() {
 function hydrateAction(el) {
     var action = el.dataset.action
     var args = null
+    // still needed?
     var variable = el.dataset.var
     if (variable) {
         args = window[variable]
@@ -269,11 +270,11 @@ export function setupGuiapi(options) {
     if (options && options.errorHandler) {
         errorHandler = options.errorHandler
     }
-    if (window.state) {
-        state = window.state
+    if (options.state) {
+        state = options.state
     }
-    if (window.stream) {
-        handleStream(window.stream)
+    if (options.stream) {
+        handleStream(options.stream)
     }
     hydrate()
     setupHistory()
