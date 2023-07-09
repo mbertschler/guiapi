@@ -11,7 +11,7 @@ import (
 
 type StreamRouter func(ctx context.Context, stream []byte, res chan<- *Response) error
 
-func (h *Handler) websocketHandler(c *Context) {
+func (s *Server) websocketHandler(c *Context) {
 	conn, err := websocket.Accept(c.Writer, c.Request, &websocket.AcceptOptions{
 		Subprotocols: []string{"guiapi"},
 	})
@@ -107,7 +107,7 @@ func (h *Handler) websocketHandler(c *Context) {
 			subCtx, subCancel := context.WithCancel(ctx)
 			previousCancel = subCancel
 			go func() {
-				err := h.StreamRouter(subCtx, buf, ch)
+				err := s.streamRouter(subCtx, buf, ch)
 				if err != nil {
 					log.Println("StreamRouter error:", err)
 					cancel()

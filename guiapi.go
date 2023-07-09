@@ -5,26 +5,10 @@ import (
 	"fmt"
 	"log"
 	"net/url"
-
-	"github.com/julienschmidt/httprouter"
 )
 
-// NewGuiapi returns an empty handler
-func NewGuiapi(sr StreamRouter) *Handler {
-	return &Handler{
-		Functions:    map[string]Callable{},
-		Router:       httprouter.New(),
-		StreamRouter: sr,
-	}
-}
-
-// SetFunc sets a callable GUI API function in the handler.
-func (h *Handler) SetFunc(name string, fn Callable) {
-	h.Functions[name] = fn
-}
-
 // Handle handles HTTP requests to the GUI API.
-func (h *Handler) Handle(c *Context) {
+func (s *Server) Handle(c *Context) {
 	var req Request
 	err := json.NewDecoder(c.Request.Body).Decode(&req)
 	if err != nil {
@@ -32,10 +16,10 @@ func (h *Handler) Handle(c *Context) {
 		return
 	}
 	if req.URL != "" {
-		h.processURL(c, &req)
+		s.processURL(c, &req)
 		return
 	}
-	resp := h.process(c, &req)
+	resp := s.process(c, &req)
 	err = json.NewEncoder(c.Writer).Encode(resp)
 	if err != nil {
 		log.Println("guiapi: error encoding response:", err)
@@ -43,12 +27,12 @@ func (h *Handler) Handle(c *Context) {
 	}
 }
 
-func (h *Handler) process(c *Context, req *Request) *Response {
+func (s *Server) process(c *Context, req *Request) *Response {
 	var res = Response{
 		Name: req.Name,
 	}
 
-	fn, ok := h.Functions[req.Name]
+	action, ok := s.actions[req.Name]
 	if !ok {
 		res.Error = &Error{
 			Code:    "undefinedFunction",
@@ -56,7 +40,7 @@ func (h *Handler) process(c *Context, req *Request) *Response {
 		}
 	} else {
 		c.State = req.State
-		r, err := fn(c, req.Args)
+		r, err := action(c, req.Args)
 		if err != nil {
 			res.Error = &Error{
 				Code:    "error",
@@ -74,7 +58,7 @@ func (h *Handler) process(c *Context, req *Request) *Response {
 	return &res
 }
 
-func (h *Handler) processURL(c *Context, req *Request) {
+func (s *Server) processURL(c *Context, req *Request) {
 	url, err := url.Parse(req.URL)
 	if err != nil {
 		log.Println("guiapi: error parsing url:", err)
@@ -82,7 +66,7 @@ func (h *Handler) processURL(c *Context, req *Request) {
 		c.Writer.Write([]byte(`{"error":"400 bad request"}`))
 		return
 	}
-	handle, params, _ := h.Router.Lookup("GET", url.Path)
+	handle, params, _ := s.pages.Lookup("GET", url.Path)
 	if handle == nil {
 		log.Println("guiapi: no handler found for", req.URL)
 		c.Writer.WriteHeader(404)
@@ -103,12 +87,6 @@ type Request struct {
 	// State is can be passed back and forth between the server and browser.
 	// It is held in a Javascript variable, so there is one per browser tab.
 	State json.RawMessage `json:",omitempty"`
-}
-
-type Handler struct {
-	Router       *httprouter.Router
-	Functions    map[string]Callable
-	StreamRouter StreamRouter
 }
 
 type HandlerFunc func(*Context)

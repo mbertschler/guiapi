@@ -10,19 +10,23 @@ import (
 )
 
 type Server struct {
-	router     *httprouter.Router
-	guiapi     *Handler
-	middleware Middleware
+	http         *httprouter.Router
+	pages        *httprouter.Router
+	actions      map[string]Callable
+	streamRouter StreamRouter
+	middleware   Middleware
 }
 
 func New(middleware Middleware, streamRouter StreamRouter) *Server {
 	s := &Server{
-		router:     httprouter.New(),
-		guiapi:     NewGuiapi(streamRouter),
-		middleware: middleware,
+		http:         httprouter.New(),
+		pages:        httprouter.New(),
+		actions:      map[string]Callable{},
+		streamRouter: streamRouter,
+		middleware:   middleware,
 	}
-	s.router.POST("/guiapi", s.wrapMiddleware(s.guiapi.Handle))
-	s.router.GET("/guiapi/ws", s.wrapMiddleware(s.guiapi.websocketHandler))
+	s.http.POST("/guiapi", s.wrapMiddleware(s.Handle))
+	s.http.GET("/guiapi/ws", s.wrapMiddleware(s.websocketHandler))
 	return s
 }
 
@@ -65,11 +69,11 @@ func (s *Server) RegisterComponent(c Component) {
 }
 
 func (s *Server) ServeFiles(url string, fs http.FileSystem) {
-	s.router.ServeFiles(url+"*filepath", fs)
+	s.http.ServeFiles(url+"*filepath", fs)
 }
 
 func (s *Server) SetFunc(name string, fn Callable) {
-	s.guiapi.SetFunc(name, fn)
+	s.actions[name] = fn
 }
 
 type Page interface {
@@ -88,7 +92,7 @@ type Context struct {
 type PageFunc func(*Context) (Page, error)
 
 func (s *Server) page(path string, page PageFunc) {
-	s.router.GET(path, s.wrapMiddleware(func(c *Context) {
+	s.http.GET(path, s.wrapMiddleware(func(c *Context) {
 		res, err := page(c)
 		if err != nil {
 			log.Println("page error:", err)
@@ -105,7 +109,7 @@ func (s *Server) page(path string, page PageFunc) {
 }
 
 func (s *Server) pageUpdate(path string, page PageFunc) {
-	s.guiapi.Router.GET(path, s.wrapMiddleware(func(c *Context) {
+	s.pages.GET(path, s.wrapMiddleware(func(c *Context) {
 		res, err := page(c)
 		if err != nil {
 			log.Println("page error:", err)
@@ -128,5 +132,5 @@ func (s *Server) pageUpdate(path string, page PageFunc) {
 }
 
 func (s *Server) Handler() http.Handler {
-	return s.router
+	return s.http
 }
