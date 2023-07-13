@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"flag"
+	"io/fs"
 	"log"
 	"net/http"
 
@@ -14,7 +15,7 @@ type App struct {
 	Server *guiapi.Server
 }
 
-func NewApp() *App {
+func NewApp(distFS fs.FS) *App {
 	app := &App{}
 	app.DB = NewDB()
 
@@ -22,8 +23,11 @@ func NewApp() *App {
 	counter := &Counter{DB: app.DB}
 	todo := &TodoList{DB: app.DB}
 
-	// functional options
+	// better struct options
 	app.Server = guiapi.New(app.DB.sessionMiddleware, reports.StreamRouter)
+
+	// move into guiapi?
+	app.Server.AddFiles("/dist/", http.FS(distFS))
 
 	reports.Register(app.Server)
 	counter.Register(app.Server)
@@ -57,10 +61,7 @@ func main() {
 		return
 	}
 
-	app := NewApp()
-
-	// move into guiapi
-	app.Server.ServeFiles("/dist/", http.FS(fs))
+	app := NewApp(fs)
 
 	log.Println("listening on localhost:8000")
 	err = http.ListenAndServe("localhost:8000", app.Server.Handler())

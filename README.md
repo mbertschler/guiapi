@@ -14,8 +14,9 @@ Guiapi
 - [x] page only init stuff needs nicer API (what is put in <script> globals)
 - [x] consider removing html coupling from the API
 - [ ] clean up library and examples
-- [ ] tests
 - [ ] documentation
+- [ ] tests
+    - [ ] maybe use https://github.com/chromedp/chromedp
 
 
 ### Refactoring ideas

@@ -7,8 +7,8 @@ import (
 	"net/url"
 )
 
-// Handle handles HTTP requests to the GUI API.
-func (s *Server) Handle(c *Context) {
+// handle handles HTTP requests to the GUI API.
+func (s *Server) handle(c *Context) {
 	var req Request
 	err := json.NewDecoder(c.Request.Body).Decode(&req)
 	if err != nil {
@@ -66,7 +66,7 @@ func (s *Server) processURL(c *Context, req *Request) {
 		c.Writer.Write([]byte(`{"error":"400 bad request"}`))
 		return
 	}
-	handle, params, _ := s.pages.Lookup("GET", url.Path)
+	handle, params, _ := s.pagesRouter.Lookup("GET", url.Path)
 	if handle == nil {
 		log.Println("guiapi: no handler found for", req.URL)
 		c.Writer.WriteHeader(404)

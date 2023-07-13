@@ -10,8 +10,8 @@ import (
 )
 
 type Server struct {
-	http         *httprouter.Router
-	pages        *httprouter.Router
+	httpRouter   *httprouter.Router
+	pagesRouter  *httprouter.Router
 	actions      map[string]ActionFunc
 	streamRouter StreamRouter
 	middleware   Middleware
@@ -19,14 +19,14 @@ type Server struct {
 
 func New(middleware Middleware, streamRouter StreamRouter) *Server {
 	s := &Server{
-		http:         httprouter.New(),
-		pages:        httprouter.New(),
+		httpRouter:   httprouter.New(),
+		pagesRouter:  httprouter.New(),
 		actions:      map[string]ActionFunc{},
 		streamRouter: streamRouter,
 		middleware:   middleware,
 	}
-	s.http.POST("/guiapi", s.wrapMiddleware(s.Handle))
-	s.http.GET("/guiapi/ws", s.wrapMiddleware(s.websocketHandler))
+	s.httpRouter.POST("/guiapi", s.wrapMiddleware(s.handle))
+	s.httpRouter.GET("/guiapi/ws", s.wrapMiddleware(s.websocketHandler))
 	return s
 }
 
@@ -52,8 +52,8 @@ func (s *Server) AddPage(path string, p PageFunc) {
 	s.pageUpdate(path, p)
 }
 
-func (s *Server) ServeFiles(url string, fs http.FileSystem) {
-	s.http.ServeFiles(url+"*filepath", fs)
+func (s *Server) AddFiles(baseURL string, fs http.FileSystem) {
+	s.httpRouter.ServeFiles(baseURL+"*filepath", fs)
 }
 
 func (s *Server) AddAction(name string, fn ActionFunc) {
@@ -76,7 +76,7 @@ type Context struct {
 type PageFunc func(*Context) (Page, error)
 
 func (s *Server) page(path string, page PageFunc) {
-	s.http.GET(path, s.wrapMiddleware(func(c *Context) {
+	s.httpRouter.GET(path, s.wrapMiddleware(func(c *Context) {
 		res, err := page(c)
 		if err != nil {
 			log.Println("page error:", err)
@@ -93,7 +93,7 @@ func (s *Server) page(path string, page PageFunc) {
 }
 
 func (s *Server) pageUpdate(path string, page PageFunc) {
-	s.pages.GET(path, s.wrapMiddleware(func(c *Context) {
+	s.pagesRouter.GET(path, s.wrapMiddleware(func(c *Context) {
 		res, err := page(c)
 		if err != nil {
 			log.Println("page error:", err)
@@ -116,5 +116,5 @@ func (s *Server) pageUpdate(path string, page PageFunc) {
 }
 
 func (s *Server) Handler() http.Handler {
-	return s.http
+	return s.httpRouter
 }
