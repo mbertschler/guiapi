@@ -14,17 +14,11 @@ type Counter struct {
 	*DB
 }
 
-func (c *Counter) Component() *guiapi.ComponentConfig {
-	return &guiapi.ComponentConfig{
-		Name: "Counter",
-		Actions: map[string]guiapi.Callable{
-			"Increase": c.Increase,
-			"Decrease": c.Decrease,
-		},
-		Pages: map[string]guiapi.PageFunc{
-			"/counter": c.RenderPage,
-		},
-	}
+func (c *Counter) Register(s *guiapi.Server) {
+	s.AddPage("/counter", c.RenderPage)
+
+	s.AddAction("Counter.Increase", c.Increase)
+	s.AddAction("Counter.Decrease", c.Decrease)
 }
 
 type CounterPage struct {

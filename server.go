@@ -12,7 +12,7 @@ import (
 type Server struct {
 	http         *httprouter.Router
 	pages        *httprouter.Router
-	actions      map[string]Callable
+	actions      map[string]ActionFunc
 	streamRouter StreamRouter
 	middleware   Middleware
 }
@@ -21,7 +21,7 @@ func New(middleware Middleware, streamRouter StreamRouter) *Server {
 	s := &Server{
 		http:         httprouter.New(),
 		pages:        httprouter.New(),
-		actions:      map[string]Callable{},
+		actions:      map[string]ActionFunc{},
 		streamRouter: streamRouter,
 		middleware:   middleware,
 	}
@@ -47,32 +47,16 @@ func (s *Server) wrapMiddleware(handler HandlerFunc) httprouter.Handle {
 
 type Middleware func(c *Context, next HandlerFunc)
 
-type Component interface {
-	Component() *ComponentConfig
-}
-
-type ComponentConfig struct {
-	Name    string
-	Actions map[string]Callable
-	Pages   map[string]PageFunc
-}
-
-func (s *Server) RegisterComponent(c Component) {
-	config := c.Component()
-	for name, fn := range config.Actions {
-		s.SetFunc(config.Name+"."+name, fn)
-	}
-	for path, fn := range config.Pages {
-		s.page(path, fn)
-		s.pageUpdate(path, fn)
-	}
+func (s *Server) AddPage(path string, p PageFunc) {
+	s.page(path, p)
+	s.pageUpdate(path, p)
 }
 
 func (s *Server) ServeFiles(url string, fs http.FileSystem) {
 	s.http.ServeFiles(url+"*filepath", fs)
 }
 
-func (s *Server) SetFunc(name string, fn Callable) {
+func (s *Server) AddAction(name string, fn ActionFunc) {
 	s.actions[name] = fn
 }
 

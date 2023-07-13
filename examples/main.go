@@ -10,16 +10,25 @@ import (
 )
 
 type App struct {
-	DB      *DB
-	Server  *guiapi.Server
-	Reports *Reports
+	DB     *DB
+	Server *guiapi.Server
 }
 
 func NewApp() *App {
 	app := &App{}
 	app.DB = NewDB()
-	app.Reports = NewReportsComponent()
-	app.Server = guiapi.New(app.DB.sessionMiddleware, app.Reports.StreamRouter)
+
+	reports := NewReportsComponent()
+	counter := &Counter{DB: app.DB}
+	todo := &TodoList{DB: app.DB}
+
+	// functional options
+	app.Server = guiapi.New(app.DB.sessionMiddleware, reports.StreamRouter)
+
+	reports.Register(app.Server)
+	counter.Register(app.Server)
+	todo.Register(app.Server)
+
 	return app
 }
 
@@ -33,8 +42,12 @@ func main() {
 	flag.BoolVar(&exitAfterBuild, "build", false, "build assets and exit")
 	flag.Parse()
 
+	// move as options into guiapi New() call, or not?
+	// what about exitAfterBuild?
 	options := guiapi.NewBuildOptions("js/main.js", "dist/bundle.js")
 	options.EsbuildArgs = []string{"--metafile=dist/meta.json"}
+
+	// BuildAssets(), but called on the whole server after configuring?
 	fs, err := guiapi.BuildOrUseBuiltAssets(options, distEmbedFS)
 	if err != nil {
 		log.Fatal(err)
@@ -46,10 +59,7 @@ func main() {
 
 	app := NewApp()
 
-	app.Server.RegisterComponent(&Counter{DB: app.DB})
-	app.Server.RegisterComponent(&TodoList{DB: app.DB})
-	app.Server.RegisterComponent(app.Reports)
-
+	// move into guiapi
 	app.Server.ServeFiles("/dist/", http.FS(fs))
 
 	log.Println("listening on localhost:8000")

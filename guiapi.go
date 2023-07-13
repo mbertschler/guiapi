@@ -91,4 +91,4 @@ type Request struct {
 
 type HandlerFunc func(*Context)
 
-type Callable func(c *Context, args json.RawMessage) (*Response, error)
+type ActionFunc func(c *Context, args json.RawMessage) (*Response, error)

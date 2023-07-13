@@ -19,7 +19,7 @@ type Context struct {
 
 type TypedContextCallable[T any] func(c *Context, args *T) (*guiapi.Response, error)
 
-func ContextCallable[T any](fn TypedContextCallable[T]) guiapi.Callable {
+func ContextCallable[T any](fn TypedContextCallable[T]) guiapi.ActionFunc {
 	return func(c *guiapi.Context, raw json.RawMessage) (*guiapi.Response, error) {
 		var input T
 		if raw != nil {
@@ -102,24 +102,18 @@ type TodoList struct {
 	*DB
 }
 
-func (t *TodoList) Component() *guiapi.ComponentConfig {
-	return &guiapi.ComponentConfig{
-		Name: "TodoList",
-		Actions: map[string]guiapi.Callable{
-			"NewTodo":        ContextCallable(t.NewTodo),
-			"ToggleItem":     ContextCallable(t.ToggleItem),
-			"ToggleAll":      ContextCallable(t.ToggleAll),
-			"DeleteItem":     ContextCallable(t.DeleteItem),
-			"ClearCompleted": ContextCallable(t.ClearCompleted),
-			"EditItem":       ContextCallable(t.EditItem),
-			"UpdateItem":     ContextCallable(t.UpdateItem),
-		},
-		Pages: map[string]guiapi.PageFunc{
-			"/":          t.RenderFullPage(TodoListPageAll),
-			"/active":    t.RenderFullPage(TodoListPageActive),
-			"/completed": t.RenderFullPage(TodoListPageCompleted),
-		},
-	}
+func (t *TodoList) Register(s *guiapi.Server) {
+	s.AddPage("/", t.RenderFullPage(TodoListPageAll))
+	s.AddPage("/active", t.RenderFullPage(TodoListPageActive))
+	s.AddPage("/completed", t.RenderFullPage(TodoListPageCompleted))
+
+	s.AddAction("TodoList.NewTodo", ContextCallable(t.NewTodo))
+	s.AddAction("TodoList.ToggleItem", ContextCallable(t.ToggleItem))
+	s.AddAction("TodoList.ToggleAll", ContextCallable(t.ToggleAll))
+	s.AddAction("TodoList.DeleteItem", ContextCallable(t.DeleteItem))
+	s.AddAction("TodoList.ClearCompleted", ContextCallable(t.ClearCompleted))
+	s.AddAction("TodoList.EditItem", ContextCallable(t.EditItem))
+	s.AddAction("TodoList.UpdateItem", ContextCallable(t.UpdateItem))
 }
 
 const (

@@ -16,3 +16,9 @@ Guiapi
 - [ ] clean up library and examples
 - [ ] tests
 - [ ] documentation
+
+
+### Refactoring ideas
+
+- [x] try reflection for component config. Nope - reflection is never clear
+- [ ] make the response generation functions method on the context

@@ -177,20 +177,14 @@ type Reports struct {
 	DB *ReportsDB
 }
 
-func (r *Reports) Component() *guiapi.ComponentConfig {
-	return &guiapi.ComponentConfig{
-		Name: "Reports",
-		Actions: map[string]guiapi.Callable{
-			"Start":     ContextCallable(r.Start),
-			"Cancel":    ContextCallable(r.Cancel),
-			"Refresh":   ContextCallable(r.Refresh),
-			"SomeError": ContextCallable(r.SomeError),
-		},
-		Pages: map[string]guiapi.PageFunc{
-			"/reports":    r.IndexPage,
-			"/report/:id": r.ReportPage,
-		},
-	}
+func (r *Reports) Register(s *guiapi.Server) {
+	s.AddPage("/reports", r.IndexPage)
+	s.AddPage("/report/:id", r.ReportPage)
+
+	s.AddAction("Reports.Start", ContextCallable(r.Start))
+	s.AddAction("Reports.Cancel", ContextCallable(r.Cancel))
+	s.AddAction("Reports.Refresh", ContextCallable(r.Refresh))
+	s.AddAction("Reports.SomeError", ContextCallable(r.SomeError))
 }
 
 type ReportsPage struct {
