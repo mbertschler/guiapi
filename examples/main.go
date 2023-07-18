@@ -19,12 +19,12 @@ func NewApp(distFS fs.FS) *App {
 	app := &App{}
 	app.DB = NewDB()
 
-	reports := NewReportsComponent()
+	reports := NewReportsComponent(app.DB)
 	counter := &Counter{DB: app.DB}
 	todo := &TodoList{DB: app.DB}
 
 	// better struct options
-	app.Server = guiapi.New(app.DB.sessionMiddleware, reports.StreamRouter)
+	app.Server = guiapi.New(reports.StreamRouter)
 
 	// move into guiapi?
 	app.Server.AddFiles("/dist/", http.FS(distFS))
@@ -64,7 +64,7 @@ func main() {
 	app := NewApp(fs)
 
 	log.Println("listening on localhost:8000")
-	err = http.ListenAndServe("localhost:8000", app.Server.Handler())
+	err = http.ListenAndServe("localhost:8000", app.Server)
 	if err != nil {
 		log.Fatal(err)
 	}

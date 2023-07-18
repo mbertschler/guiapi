@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 )
 
 // handle handles HTTP requests to the GUI API.
-func (s *Server) handle(c *Context) {
+func (s *Server) handle(c *PageCtx) {
 	var req Request
 	err := json.NewDecoder(c.Request.Body).Decode(&req)
 	if err != nil {
@@ -27,7 +28,7 @@ func (s *Server) handle(c *Context) {
 	}
 }
 
-func (s *Server) process(c *Context, req *Request) *Response {
+func (s *Server) process(p *PageCtx, req *Request) *Response {
 	var res = Response{
 		Name: req.Name,
 	}
@@ -39,8 +40,13 @@ func (s *Server) process(c *Context, req *Request) *Response {
 			Message: fmt.Sprint(req.Name, " is not defined"),
 		}
 	} else {
-		c.State = req.State
-		r, err := action(c, req.Args)
+		actionCtx := ActionCtx{
+			Writer:  p.Writer,
+			Request: p.Request,
+			State:   req.State,
+			Args:    req.Args,
+		}
+		r, err := action(&actionCtx)
 		if err != nil {
 			res.Error = &Error{
 				Code:    "error",
@@ -58,7 +64,7 @@ func (s *Server) process(c *Context, req *Request) *Response {
 	return &res
 }
 
-func (s *Server) processURL(c *Context, req *Request) {
+func (s *Server) processURL(c *PageCtx, req *Request) {
 	url, err := url.Parse(req.URL)
 	if err != nil {
 		log.Println("guiapi: error parsing url:", err)
@@ -89,6 +95,11 @@ type Request struct {
 	State json.RawMessage `json:",omitempty"`
 }
 
-type HandlerFunc func(*Context)
+type ActionCtx struct {
+	Writer  http.ResponseWriter
+	Request *http.Request
+	State   json.RawMessage
+	Args    json.RawMessage
+}
 
-type ActionFunc func(c *Context, args json.RawMessage) (*Response, error)
+type ActionFunc func(c *ActionCtx) (*Response, error)

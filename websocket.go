@@ -11,7 +11,7 @@ import (
 
 type StreamRouter func(ctx context.Context, stream []byte, res chan<- *Response) error
 
-func (s *Server) websocketHandler(c *Context) {
+func (s *Server) websocketHandler(c *PageCtx) {
 	conn, err := websocket.Accept(c.Writer, c.Request, &websocket.AcceptOptions{
 		Subprotocols: []string{"guiapi"},
 	})

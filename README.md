@@ -16,10 +16,12 @@ Guiapi
 - [ ] clean up library and examples
 - [ ] documentation
 - [ ] tests
-    - [ ] maybe use https://github.com/chromedp/chromedp
+  - [ ] maybe use https://github.com/chromedp/chromedp
 
 
 ### Refactoring ideas
 
 - [x] try reflection for component config. Nope - reflection is never clear
-- [ ] make the response generation functions method on the context
+- [x] split Context into PageCtx and ActionCtx 
+- [ ] make the Response part of ActionCtx,  functions method on the context
+- [ ] turn `StreamRouter` into `map[string]StreamFunc{}`, follow name/args convention

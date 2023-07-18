@@ -14,41 +14,35 @@ type Server struct {
 	pagesRouter  *httprouter.Router
 	actions      map[string]ActionFunc
 	streamRouter StreamRouter
-	middleware   Middleware
 }
 
-func New(middleware Middleware, streamRouter StreamRouter) *Server {
+func New(streamRouter StreamRouter) *Server {
 	s := &Server{
 		httpRouter:   httprouter.New(),
 		pagesRouter:  httprouter.New(),
 		actions:      map[string]ActionFunc{},
 		streamRouter: streamRouter,
-		middleware:   middleware,
 	}
-	s.httpRouter.POST("/guiapi", s.wrapMiddleware(s.handle))
-	s.httpRouter.GET("/guiapi/ws", s.wrapMiddleware(s.websocketHandler))
+	s.httpRouter.POST("/guiapi", s.withPageCtx(s.handle))
+	s.httpRouter.GET("/guiapi/ws", s.withPageCtx(s.websocketHandler))
 	return s
 }
 
-func (s *Server) wrapMiddleware(handler HandlerFunc) httprouter.Handle {
+func (s *Server) withPageCtx(handler HandlerFunc) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-		c := &Context{
+		c := &PageCtx{
 			Writer:  w,
 			Request: r,
 			Params:  ps,
 		}
-		if s.middleware != nil {
-			s.middleware(c, handler)
-		} else {
-			handler(c)
-		}
+		handler(c)
 	}
 }
 
-type Middleware func(c *Context, next HandlerFunc)
+type HandlerFunc func(*PageCtx)
 
 func (s *Server) AddPage(path string, p PageFunc) {
-	s.page(path, p)
+	s.pageHTML(path, p)
 	s.pageUpdate(path, p)
 }
 
@@ -65,18 +59,16 @@ type Page interface {
 	Update() (*Response, error)
 }
 
-type Context struct {
+type PageCtx struct {
 	Writer  http.ResponseWriter
 	Request *http.Request
 	Params  httprouter.Params
-	Session any
-	State   json.RawMessage
 }
 
-type PageFunc func(*Context) (Page, error)
+type PageFunc func(*PageCtx) (Page, error)
 
-func (s *Server) page(path string, page PageFunc) {
-	s.httpRouter.GET(path, s.wrapMiddleware(func(c *Context) {
+func (s *Server) pageHTML(path string, page PageFunc) {
+	s.httpRouter.GET(path, s.withPageCtx(func(c *PageCtx) {
 		res, err := page(c)
 		if err != nil {
 			log.Println("page error:", err)
@@ -93,7 +85,7 @@ func (s *Server) page(path string, page PageFunc) {
 }
 
 func (s *Server) pageUpdate(path string, page PageFunc) {
-	s.pagesRouter.GET(path, s.wrapMiddleware(func(c *Context) {
+	s.pagesRouter.GET(path, s.withPageCtx(func(c *PageCtx) {
 		res, err := page(c)
 		if err != nil {
 			log.Println("page error:", err)
@@ -115,6 +107,6 @@ func (s *Server) pageUpdate(path string, page PageFunc) {
 	}))
 }
 
-func (s *Server) Handler() http.Handler {
-	return s.httpRouter
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.httpRouter.ServeHTTP(w, r)
 }

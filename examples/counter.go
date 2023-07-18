@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -52,7 +51,7 @@ func (c *CounterPage) Update() (*guiapi.Response, error) {
 	return guiapi.ReplaceContent("#page", out), err
 }
 
-func (c *Counter) RenderPage(ctx *guiapi.Context) (guiapi.Page, error) {
+func (c *Counter) RenderPage(ctx *guiapi.PageCtx) (guiapi.Page, error) {
 	block, err := c.RenderBlock(ctx)
 	if err != nil {
 		return nil, err
@@ -65,8 +64,8 @@ func (c *Counter) RenderPage(ctx *guiapi.Context) (guiapi.Page, error) {
 	return &CounterPage{Content: main}, nil
 }
 
-func (c *Counter) RenderBlock(ctx *guiapi.Context) (html.Block, error) {
-	sess := sessionFromContext(ctx)
+func (c *Counter) RenderBlock(ctx *guiapi.PageCtx) (html.Block, error) {
+	sess := c.DB.Session(ctx.Writer, ctx.Request)
 	counter, err := c.DB.GetCounter(sess.ID)
 	if err != nil {
 		return nil, err
@@ -81,8 +80,8 @@ func (c *Counter) RenderBlock(ctx *guiapi.Context) (html.Block, error) {
 	return block, nil
 }
 
-func (c *Counter) Increase(ctx *guiapi.Context, args json.RawMessage) (*guiapi.Response, error) {
-	sess := sessionFromContext(ctx)
+func (c *Counter) Increase(ctx *guiapi.ActionCtx) (*guiapi.Response, error) {
+	sess := c.DB.Session(ctx.Writer, ctx.Request)
 	counter, err := c.DB.GetCounter(sess.ID)
 	if err != nil {
 		return nil, err
@@ -97,8 +96,8 @@ func (c *Counter) Increase(ctx *guiapi.Context, args json.RawMessage) (*guiapi.R
 	return guiapi.ReplaceContent("#count", out), err
 }
 
-func (c *Counter) Decrease(ctx *guiapi.Context, args json.RawMessage) (*guiapi.Response, error) {
-	sess := sessionFromContext(ctx)
+func (c *Counter) Decrease(ctx *guiapi.ActionCtx) (*guiapi.Response, error) {
+	sess := c.DB.Session(ctx.Writer, ctx.Request)
 	counter, err := c.DB.GetCounter(sess.ID)
 	if err != nil {
 		return nil, err

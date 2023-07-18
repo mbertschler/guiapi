@@ -4,33 +4,12 @@ import (
 	"log"
 	"net/http"
 	"time"
-
-	"github.com/mbertschler/guiapi"
 )
-
-type SessionStorage interface {
-	GetSession(id string) (*Session, error)
-	SetSession(s *Session) error
-}
 
 const sessionCookie = "session"
 
-func sessionFromContext(c *guiapi.Context) *Session {
-	sess, ok := c.Session.(*Session)
-	if ok && sess != nil {
-		return sess
-	}
-	if !ok {
-		log.Printf("bad session %#v", c.Session)
-	}
-	if sess == nil {
-		sess = &Session{}
-	}
-	return sess
-}
-
-func (db *DB) sessionMiddleware(c *guiapi.Context, next guiapi.HandlerFunc) {
-	cookie, err := c.Request.Cookie(sessionCookie)
+func (db *DB) Session(w http.ResponseWriter, r *http.Request) *Session {
+	cookie, err := r.Cookie(sessionCookie)
 	if err != nil && err != http.ErrNoCookie {
 		log.Println("sessionMiddleware.Cookie:", err)
 	}
@@ -43,7 +22,7 @@ func (db *DB) sessionMiddleware(c *guiapi.Context, next guiapi.HandlerFunc) {
 		log.Println("sessionMiddleware.GetSession:", err)
 	}
 	if sess.New {
-		http.SetCookie(c.Writer, &http.Cookie{
+		http.SetCookie(w, &http.Cookie{
 			Name:     sessionCookie,
 			Value:    sess.ID,
 			Path:     "/",
@@ -51,10 +30,9 @@ func (db *DB) sessionMiddleware(c *guiapi.Context, next guiapi.HandlerFunc) {
 			Expires:  time.Now().Add(30 * 24 * time.Hour),
 		})
 	}
-	c.Session = sess
-	next(c)
 	err = db.SetSession(sess)
 	if err != nil {
 		log.Println("sessionMiddleware.SetSession:", err)
 	}
+	return sess
 }

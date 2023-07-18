@@ -11,26 +11,33 @@ import (
 	"github.com/mbertschler/html/attr"
 )
 
-type Context struct {
-	Ctx   *guiapi.Context
+type Page struct {
+	*guiapi.PageCtx
+	Sess *Session
+}
+
+type Action struct {
+	*guiapi.ActionCtx
 	Sess  *Session
 	State TodoListState
 }
 
-type TypedContextCallable[T any] func(c *Context, args *T) (*guiapi.Response, error)
+type ActionFunc[T any] func(c *Action, args *T) (*guiapi.Response, error)
 
-func ContextCallable[T any](fn TypedContextCallable[T]) guiapi.ActionFunc {
-	return func(c *guiapi.Context, raw json.RawMessage) (*guiapi.Response, error) {
+func ContextAction[T any](db *DB, fn ActionFunc[T]) guiapi.ActionFunc {
+	return func(c *guiapi.ActionCtx) (*guiapi.Response, error) {
 		var input T
-		if raw != nil {
-			err := json.Unmarshal(raw, &input)
+		if c.Args != nil {
+			err := json.Unmarshal(c.Args, &input)
 			if err != nil {
 				return nil, err
 			}
 		}
 
-		ctx := &Context{Ctx: c,
-			Sess: sessionFromContext(c)}
+		ctx := &Action{
+			ActionCtx: c,
+			Sess:      db.Session(c.Writer, c.Request),
+		}
 
 		err := json.Unmarshal(c.State, &ctx.State)
 		if err != nil {
@@ -40,12 +47,14 @@ func ContextCallable[T any](fn TypedContextCallable[T]) guiapi.ActionFunc {
 	}
 }
 
-type TypedContextPage func(c *Context) (guiapi.Page, error)
+type PageFunc func(c *Page) (guiapi.Page, error)
 
-func ContextPage(fn TypedContextPage) guiapi.PageFunc {
-	return func(c *guiapi.Context) (guiapi.Page, error) {
-		sess := sessionFromContext(c)
-		return fn(&Context{Ctx: c, Sess: sess})
+func PageWrapper(db *DB) func(PageFunc) guiapi.PageFunc {
+	return func(pf PageFunc) guiapi.PageFunc {
+		return func(ctx *guiapi.PageCtx) (guiapi.Page, error) {
+			sess := db.Session(ctx.Writer, ctx.Request)
+			return pf(&Page{PageCtx: ctx, Sess: sess})
+		}
 	}
 }
 
@@ -107,13 +116,13 @@ func (t *TodoList) Register(s *guiapi.Server) {
 	s.AddPage("/active", t.RenderFullPage(TodoListPageActive))
 	s.AddPage("/completed", t.RenderFullPage(TodoListPageCompleted))
 
-	s.AddAction("TodoList.NewTodo", ContextCallable(t.NewTodo))
-	s.AddAction("TodoList.ToggleItem", ContextCallable(t.ToggleItem))
-	s.AddAction("TodoList.ToggleAll", ContextCallable(t.ToggleAll))
-	s.AddAction("TodoList.DeleteItem", ContextCallable(t.DeleteItem))
-	s.AddAction("TodoList.ClearCompleted", ContextCallable(t.ClearCompleted))
-	s.AddAction("TodoList.EditItem", ContextCallable(t.EditItem))
-	s.AddAction("TodoList.UpdateItem", ContextCallable(t.UpdateItem))
+	s.AddAction("TodoList.NewTodo", ContextAction(t.DB, t.NewTodo))
+	s.AddAction("TodoList.ToggleItem", ContextAction(t.DB, t.ToggleItem))
+	s.AddAction("TodoList.ToggleAll", ContextAction(t.DB, t.ToggleAll))
+	s.AddAction("TodoList.DeleteItem", ContextAction(t.DB, t.DeleteItem))
+	s.AddAction("TodoList.ClearCompleted", ContextAction(t.DB, t.ClearCompleted))
+	s.AddAction("TodoList.EditItem", ContextAction(t.DB, t.EditItem))
+	s.AddAction("TodoList.UpdateItem", ContextAction(t.DB, t.UpdateItem))
 }
 
 const (
@@ -133,18 +142,18 @@ type TodoListProps struct {
 }
 
 func (t *TodoList) RenderFullPage(page string) guiapi.PageFunc {
-	return ContextPage(func(ctx *Context) (guiapi.Page, error) {
+	wrap := PageWrapper(t.DB)
+	return wrap(func(ctx *Page) (guiapi.Page, error) {
 		content, err := t.renderPageContent(ctx, page)
 		if err != nil {
 			return nil, err
 		}
-		return &TodoPage{Content: content, State: ctx.State}, nil
+		return &TodoPage{Content: content}, nil
 	})
 }
 
-func (t *TodoList) renderPageContent(ctx *Context, page string) (html.Block, error) {
-	ctx.State.Page = page
-	props, err := t.todoListProps(ctx)
+func (t *TodoList) renderPageContent(ctx *Page, page string) (html.Block, error) {
+	props, err := t.todoListProps(ctx.Sess, page)
 	if err != nil {
 		return nil, err
 	}
@@ -302,7 +311,7 @@ type NewTodoArgs struct {
 	Text string `json:"text"`
 }
 
-func (t *TodoList) NewTodo(ctx *Context, input *NewTodoArgs) (*guiapi.Response, error) {
+func (t *TodoList) NewTodo(ctx *Action, input *NewTodoArgs) (*guiapi.Response, error) {
 	return t.updateTodoList(ctx, func(props *TodoListProps, todos *StoredTodo) error {
 		var highestID int
 		for _, item := range todos.Items {
@@ -316,7 +325,7 @@ func (t *TodoList) NewTodo(ctx *Context, input *NewTodoArgs) (*guiapi.Response, 
 	})
 }
 
-func (t *TodoList) ToggleItem(ctx *Context, args *IDArgs) (*guiapi.Response, error) {
+func (t *TodoList) ToggleItem(ctx *Action, args *IDArgs) (*guiapi.Response, error) {
 	return t.updateTodoList(ctx, func(props *TodoListProps, todos *StoredTodo) error {
 		for i, item := range todos.Items {
 			if item.ID == args.ID {
@@ -327,7 +336,7 @@ func (t *TodoList) ToggleItem(ctx *Context, args *IDArgs) (*guiapi.Response, err
 	})
 }
 
-func (t *TodoList) ToggleAll(ctx *Context, args *NoArgs) (*guiapi.Response, error) {
+func (t *TodoList) ToggleAll(ctx *Action, args *NoArgs) (*guiapi.Response, error) {
 	return t.updateTodoList(ctx, func(props *TodoListProps, todos *StoredTodo) error {
 		allDone := true
 		for _, item := range todos.Items {
@@ -344,7 +353,7 @@ func (t *TodoList) ToggleAll(ctx *Context, args *NoArgs) (*guiapi.Response, erro
 	})
 }
 
-func (t *TodoList) DeleteItem(ctx *Context, args *IDArgs) (*guiapi.Response, error) {
+func (t *TodoList) DeleteItem(ctx *Action, args *IDArgs) (*guiapi.Response, error) {
 	return t.updateTodoList(ctx, func(props *TodoListProps, todos *StoredTodo) error {
 		var newItems []StoredTodoItem
 		for _, item := range todos.Items {
@@ -360,7 +369,7 @@ func (t *TodoList) DeleteItem(ctx *Context, args *IDArgs) (*guiapi.Response, err
 
 type NoArgs struct{}
 
-func (t *TodoList) ClearCompleted(ctx *Context, _ *NoArgs) (*guiapi.Response, error) {
+func (t *TodoList) ClearCompleted(ctx *Action, _ *NoArgs) (*guiapi.Response, error) {
 	return t.updateTodoList(ctx, func(props *TodoListProps, todos *StoredTodo) error {
 		var newItems []StoredTodoItem
 		for _, item := range todos.Items {
@@ -378,7 +387,7 @@ type IDArgs struct {
 	ID int `json:"id"`
 }
 
-func (t *TodoList) EditItem(ctx *Context, args *IDArgs) (*guiapi.Response, error) {
+func (t *TodoList) EditItem(ctx *Action, args *IDArgs) (*guiapi.Response, error) {
 	return t.updateTodoList(ctx, func(props *TodoListProps, _ *StoredTodo) error {
 		props.EditItemID = args.ID
 		return nil
@@ -390,7 +399,7 @@ type UpdateItemArgs struct {
 	Text string `json:"text"`
 }
 
-func (t *TodoList) UpdateItem(ctx *Context, args *UpdateItemArgs) (*guiapi.Response, error) {
+func (t *TodoList) UpdateItem(ctx *Action, args *UpdateItemArgs) (*guiapi.Response, error) {
 	return t.updateTodoList(ctx, func(props *TodoListProps, todos *StoredTodo) error {
 		for i, item := range todos.Items {
 			if item.ID == args.ID {
@@ -401,8 +410,8 @@ func (t *TodoList) UpdateItem(ctx *Context, args *UpdateItemArgs) (*guiapi.Respo
 	})
 }
 
-func (t *TodoList) updateTodoList(ctx *Context, fn func(*TodoListProps, *StoredTodo) error) (*guiapi.Response, error) {
-	props, err := t.todoListProps(ctx)
+func (t *TodoList) updateTodoList(ctx *Action, fn func(*TodoListProps, *StoredTodo) error) (*guiapi.Response, error) {
+	props, err := t.todoListProps(ctx.Sess, ctx.State.Page)
 	if err != nil {
 		return nil, err
 	}
@@ -423,14 +432,14 @@ func (t *TodoList) updateTodoList(ctx *Context, fn func(*TodoListProps, *StoredT
 	return guiapi.ReplaceContent(".todoapp", out), nil
 }
 
-func (t *TodoList) todoListProps(ctx *Context) (*TodoListProps, error) {
-	todos, err := t.DB.GetTodo(ctx.Sess.ID)
+func (t *TodoList) todoListProps(sess *Session, page string) (*TodoListProps, error) {
+	todos, err := t.DB.GetTodo(sess.ID)
 	if err != nil {
 		return nil, err
 	}
 
 	return &TodoListProps{
-		Page:  ctx.State.Page,
+		Page:  page,
 		Todos: todos,
 	}, nil
 }

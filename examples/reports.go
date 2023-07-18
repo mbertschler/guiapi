@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/julienschmidt/httprouter"
 	"github.com/mbertschler/guiapi"
 	"github.com/mbertschler/html"
 	"github.com/mbertschler/html/attr"
@@ -153,8 +152,9 @@ func (r *ReportsDB) Delete(id string) error {
 	return nil
 }
 
-func NewReportsComponent() *Reports {
+func NewReportsComponent(db *DB) *Reports {
 	return &Reports{
+		SessDB: db,
 		DB: &ReportsDB{
 			reports: make(map[string]*Report),
 		},
@@ -174,17 +174,18 @@ const (
 )
 
 type Reports struct {
-	DB *ReportsDB
+	SessDB *DB
+	DB     *ReportsDB
 }
 
 func (r *Reports) Register(s *guiapi.Server) {
 	s.AddPage("/reports", r.IndexPage)
 	s.AddPage("/report/:id", r.ReportPage)
 
-	s.AddAction("Reports.Start", ContextCallable(r.Start))
-	s.AddAction("Reports.Cancel", ContextCallable(r.Cancel))
-	s.AddAction("Reports.Refresh", ContextCallable(r.Refresh))
-	s.AddAction("Reports.SomeError", ContextCallable(r.SomeError))
+	s.AddAction("Reports.Start", ContextAction(r.SessDB, r.Start))
+	s.AddAction("Reports.Cancel", ContextAction(r.SessDB, r.Cancel))
+	s.AddAction("Reports.Refresh", ContextAction(r.SessDB, r.Refresh))
+	s.AddAction("Reports.SomeError", ContextAction(r.SessDB, r.SomeError))
 }
 
 type ReportsPage struct {
@@ -232,7 +233,7 @@ func (r *ReportsPage) Update() (*guiapi.Response, error) {
 	return res, err
 }
 
-func (r *Reports) IndexPage(ctx *guiapi.Context) (guiapi.Page, error) {
+func (r *Reports) IndexPage(ctx *guiapi.PageCtx) (guiapi.Page, error) {
 	main, err := r.indexBlock(ctx)
 	if err != nil {
 		return nil, err
@@ -243,7 +244,7 @@ func (r *Reports) IndexPage(ctx *guiapi.Context) (guiapi.Page, error) {
 	}, nil
 }
 
-func (r *Reports) indexBlock(ctx *guiapi.Context) (html.Block, error) {
+func (r *Reports) indexBlock(ctx *guiapi.PageCtx) (html.Block, error) {
 	main := html.Main(attr.Id("reports"),
 		html.H1(nil, html.Text("Reports")),
 		html.P(nil, html.Text("This is a demo for reports that take a long time to complete.")),
@@ -280,8 +281,12 @@ func (r *Reports) allReportsBlock() html.Block {
 	return block
 }
 
-func (r *Reports) ReportPage(ctx *guiapi.Context) (guiapi.Page, error) {
+func (r *Reports) ReportPage(ctx *guiapi.PageCtx) (guiapi.Page, error) {
 	id := ctx.Params.ByName("id")
+	return r.renderReportPage(id)
+}
+
+func (r *Reports) renderReportPage(id string) (guiapi.Page, error) {
 	main := html.Main(attr.Id("reports"),
 		html.A(attr.Href("/reports").Class("ga").Attr("ga-link", nil), html.Text("< All Reports")),
 		r.singleReportBlock(id),
@@ -311,7 +316,7 @@ type ReportsArgs struct {
 	ID string `json:"id"`
 }
 
-func (r *Reports) Start(ctx *Context, args *ReportsArgs) (*guiapi.Response, error) {
+func (r *Reports) Start(ctx *Action, args *ReportsArgs) (*guiapi.Response, error) {
 	report := &Report{
 		ID:      args.ID,
 		Started: time.Now(),
@@ -334,8 +339,7 @@ func (r *Reports) Start(ctx *Context, args *ReportsArgs) (*guiapi.Response, erro
 			log.Println(err)
 		}
 	}()
-	ctx.Ctx.Params = httprouter.Params{httprouter.Param{Key: "id", Value: report.ID}}
-	page, err := r.ReportPage(ctx.Ctx)
+	page, err := r.renderReportPage(args.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -344,7 +348,7 @@ func (r *Reports) Start(ctx *Context, args *ReportsArgs) (*guiapi.Response, erro
 	return update, err
 }
 
-func (r *Reports) Cancel(ctx *Context, args *ReportsArgs) (*guiapi.Response, error) {
+func (r *Reports) Cancel(ctx *Action, args *ReportsArgs) (*guiapi.Response, error) {
 	err := r.DB.Transaction(func() error {
 		report := r.DB.Get(args.ID)
 		if report.Status == ReportStatusStarted {
@@ -359,12 +363,12 @@ func (r *Reports) Cancel(ctx *Context, args *ReportsArgs) (*guiapi.Response, err
 	return guiapi.ReplaceElement("#all-reports", out), err
 }
 
-func (r *Reports) Refresh(ctx *Context, args *NoArgs) (*guiapi.Response, error) {
+func (r *Reports) Refresh(ctx *Action, args *NoArgs) (*guiapi.Response, error) {
 	time.Sleep(2 * time.Second)
 	out, err := html.RenderMinifiedString(r.allReportsBlock())
 	return guiapi.ReplaceElement("#all-reports", out), err
 }
 
-func (r *Reports) SomeError(ctx *Context, args *NoArgs) (*guiapi.Response, error) {
+func (r *Reports) SomeError(ctx *Action, args *NoArgs) (*guiapi.Response, error) {
 	return nil, errors.New("something bad happened (not really)")
 }
