@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/mbertschler/guiapi"
+	"github.com/mbertschler/guiapi/api"
 	"github.com/mbertschler/html"
 )
 
@@ -28,7 +29,7 @@ func (r *Reports) OverviewStream(ctx context.Context, results chan<- *guiapi.Res
 		out, err := html.RenderMinifiedString(r.allReportsBlock())
 		res := guiapi.ReplaceElement("#all-reports", out)
 		if err != nil {
-			res.Error = &guiapi.Error{Message: err.Error()}
+			res.Error = &api.Error{Message: err.Error()}
 		}
 		results <- res
 	})
@@ -43,7 +44,7 @@ func (r *Reports) DetailStream(ctx context.Context, id string, results chan<- *g
 		out, err := html.RenderMinifiedString(r.singleReportBlock(id))
 		res := guiapi.ReplaceElement("#single-report", out)
 		if err != nil {
-			res.Error = &guiapi.Error{Message: err.Error()}
+			res.Error = &api.Error{Message: err.Error()}
 		}
 		results <- res
 	})

@@ -25,3 +25,5 @@ Guiapi
 - [x] split Context into PageCtx and ActionCtx 
 - [ ] make the Response part of ActionCtx,  functions method on the context
 - [ ] turn `StreamRouter` into `map[string]StreamFunc{}`, follow name/args convention
+- [ ] move as much as possible into subpackages, asset building, the JSON api objects
+  - [ ] what about Response and its methods???

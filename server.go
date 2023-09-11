@@ -28,7 +28,7 @@ func New(streamRouter StreamRouter) *Server {
 	return s
 }
 
-func (s *Server) withPageCtx(handler HandlerFunc) httprouter.Handle {
+func (s *Server) withPageCtx(handler func(*PageCtx)) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		c := &PageCtx{
 			Writer:  w,
@@ -38,8 +38,6 @@ func (s *Server) withPageCtx(handler HandlerFunc) httprouter.Handle {
 		handler(c)
 	}
 }
-
-type HandlerFunc func(*PageCtx)
 
 func (s *Server) AddPage(path string, p PageFunc) {
 	s.pageHTML(path, p)
