@@ -1,12 +1,13 @@
 # guiapi
+
 Guiapi
 
 ## TODOs
 
 - [x] is the Layout returning as beautiful as it can be?
-  - [x] nope, we should return an interface 
+  - [x] nope, we should return an interface
 - [x] something for long running requests, loading indicator?
-- [x] debounce as a feature *ga-block*?
+- [x] debounce as a feature _ga-block_?
 - [x] websocket for server side updates
 - [x] server side instant redirects
 - [x] global error handler
@@ -18,12 +19,9 @@ Guiapi
 - [ ] tests
   - [ ] maybe use https://github.com/chromedp/chromedp
 
-
 ### Refactoring ideas
 
 - [x] try reflection for component config. Nope - reflection is never clear
-- [x] split Context into PageCtx and ActionCtx 
-- [ ] make the Response part of ActionCtx,  functions method on the context
+- [x] split Context into PageCtx and ActionCtx
 - [ ] turn `StreamRouter` into `map[string]StreamFunc{}`, follow name/args convention
 - [ ] move as much as possible into subpackages, asset building, the JSON api objects
-  - [ ] what about Response and its methods???

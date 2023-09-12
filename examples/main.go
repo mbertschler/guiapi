@@ -10,30 +10,24 @@ import (
 	"github.com/mbertschler/guiapi"
 )
 
-type App struct {
-	DB     *DB
-	Server *guiapi.Server
-}
+func Setup(distFS fs.FS) *guiapi.Server {
+	db := NewDB()
 
-func NewApp(distFS fs.FS) *App {
-	app := &App{}
-	app.DB = NewDB()
-
-	reports := NewReportsComponent(app.DB)
-	counter := &Counter{DB: app.DB}
-	todo := &TodoList{DB: app.DB}
+	reports := NewReportsComponent(db)
+	counter := &Counter{DB: db}
+	todo := &TodoList{DB: db}
 
 	// better struct options
-	app.Server = guiapi.New(reports.StreamRouter)
+	server := guiapi.New(reports.StreamRouter)
 
 	// move into guiapi?
-	app.Server.AddFiles("/dist/", http.FS(distFS))
+	server.AddFiles("/dist/", http.FS(distFS))
 
-	reports.Register(app.Server)
-	counter.Register(app.Server)
-	todo.Register(app.Server)
+	reports.Register(server)
+	counter.Register(server)
+	todo.Register(server)
 
-	return app
+	return server
 }
 
 //go:embed dist/*
@@ -61,10 +55,10 @@ func main() {
 		return
 	}
 
-	app := NewApp(fs)
+	server := Setup(fs)
 
 	log.Println("listening on localhost:8000")
-	err = http.ListenAndServe("localhost:8000", app.Server)
+	err = http.ListenAndServe("localhost:8000", server)
 	if err != nil {
 		log.Fatal(err)
 	}

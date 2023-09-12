@@ -5,10 +5,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/mbertschler/guiapi/assets"
 )
 
-func NewBuildOptions(infile, outfile string) BuildOptions {
-	return BuildOptions{
+func NewBuildOptions(infile, outfile string) assets.BuildOptions {
+	return assets.BuildOptions{
 		Infile:    infile,
 		Outfile:   outfile,
 		Bundle:    true,
@@ -18,21 +20,11 @@ func NewBuildOptions(infile, outfile string) BuildOptions {
 	}
 }
 
-type BuildOptions struct {
-	Infile      string
-	Outfile     string
-	Bundle      bool
-	Minify      bool
-	Sourcemap   bool
-	Log         bool
-	EsbuildArgs []string
-}
-
-func BuildOrUseBuiltAssets(options BuildOptions, built fs.FS) (fs.FS, error) {
+func BuildOrUseBuiltAssets(options assets.BuildOptions, built fs.FS) (fs.FS, error) {
 	dir := filepath.Dir(options.Outfile)
 
-	if EsbuildAvailable() {
-		err := BuildAssets(options)
+	if assets.EsbuildAvailable() {
+		err := assets.BuildAssets(options)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -43,4 +35,8 @@ func BuildOrUseBuiltAssets(options BuildOptions, built fs.FS) (fs.FS, error) {
 		log.Println("esbuild not available, using prebuilt assets")
 	}
 	return fs.Sub(built, dir)
+}
+
+func (s *Server) BuildAssets() error {
+	return nil
 }

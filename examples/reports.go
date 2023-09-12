@@ -286,7 +286,7 @@ func (r *Reports) ReportPage(ctx *guiapi.PageCtx) (guiapi.Page, error) {
 	return r.renderReportPage(id)
 }
 
-func (r *Reports) renderReportPage(id string) (guiapi.Page, error) {
+func (r *Reports) renderReportPage(id string) (*ReportsPage, error) {
 	main := html.Main(attr.Id("reports"),
 		html.A(attr.Href("/reports").Class("ga").Attr("ga-link", nil), html.Text("< All Reports")),
 		r.singleReportBlock(id),

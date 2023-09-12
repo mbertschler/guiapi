@@ -2,6 +2,7 @@ package guiapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -39,9 +40,9 @@ func (s *Server) withPageCtx(handler func(*PageCtx)) httprouter.Handle {
 	}
 }
 
-func (s *Server) AddPage(path string, p PageFunc) {
-	s.pageHTML(path, p)
-	s.pageUpdate(path, p)
+func (s *Server) AddPage(path string, fn PageFunc) {
+	s.pageHTML(path, fn)
+	s.pageUpdate(path, fn)
 }
 
 func (s *Server) AddFiles(baseURL string, fs http.FileSystem) {
@@ -54,6 +55,10 @@ func (s *Server) AddAction(name string, fn ActionFunc) {
 
 type Page interface {
 	WriteHTML(io.Writer) error
+}
+
+type PageUpdater interface {
+	Page
 	Update() (*Response, error)
 }
 
@@ -90,7 +95,14 @@ func (s *Server) pageUpdate(path string, page PageFunc) {
 			http.Error(c.Writer, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
-		resp, err := res.Update()
+		updater, ok := res.(PageUpdater)
+		if !ok {
+			err := fmt.Sprintf("page %q is not updateable", path)
+			log.Println(err)
+			http.Error(c.Writer, err, http.StatusNotImplemented)
+			return
+		}
+		resp, err := updater.Update()
 		if err != nil {
 			log.Println("page.Update error:", err)
 			http.Error(c.Writer, "Internal Server Error", http.StatusInternalServerError)

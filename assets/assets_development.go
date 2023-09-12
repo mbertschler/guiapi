@@ -1,6 +1,6 @@
 //go:build !production
 
-package guiapi
+package assets
 
 import (
 	"fmt"
