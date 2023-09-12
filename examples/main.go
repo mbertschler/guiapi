@@ -3,22 +3,35 @@ package main
 import (
 	"embed"
 	"flag"
-	"io/fs"
 	"log"
 	"net/http"
 
 	"github.com/mbertschler/guiapi"
 )
 
-func Setup(distFS fs.FS) *guiapi.Server {
+//go:embed dist/*
+var distEmbedFS embed.FS
+
+func setup() (*guiapi.Server, error) {
 	db := NewDB()
 
 	reports := NewReportsComponent(db)
 	counter := &Counter{DB: db}
 	todo := &TodoList{DB: db}
 
+	options := guiapi.DefaultOptions()
+	options.DistFS = distEmbedFS
+	options.Assets.Infile = "js/main.js"
+	options.Assets.Outfile = "dist/bundle.js"
+	options.Assets.EsbuildArgs = []string{"--metafile=dist/meta.json"}
+
 	// better struct options
-	server := guiapi.New(reports.StreamRouter)
+	server := guiapi.New(options, reports.StreamRouter)
+
+	distFS, err := server.BuildAssets()
+	if err != nil {
+		return nil, err
+	}
 
 	// move into guiapi?
 	server.AddFiles("/dist/", http.FS(distFS))
@@ -27,11 +40,8 @@ func Setup(distFS fs.FS) *guiapi.Server {
 	counter.Register(server)
 	todo.Register(server)
 
-	return server
+	return server, nil
 }
-
-//go:embed dist/*
-var distEmbedFS embed.FS
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -40,13 +50,7 @@ func main() {
 	flag.BoolVar(&exitAfterBuild, "build", false, "build assets and exit")
 	flag.Parse()
 
-	// move as options into guiapi New() call, or not?
-	// what about exitAfterBuild?
-	options := guiapi.NewBuildOptions("js/main.js", "dist/bundle.js")
-	options.EsbuildArgs = []string{"--metafile=dist/meta.json"}
-
-	// BuildAssets(), but called on the whole server after configuring?
-	fs, err := guiapi.BuildOrUseBuiltAssets(options, distEmbedFS)
+	server, err := setup()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -54,8 +58,6 @@ func main() {
 	if exitAfterBuild {
 		return
 	}
-
-	server := Setup(fs)
 
 	log.Println("listening on localhost:8000")
 	err = http.ListenAndServe("localhost:8000", server)

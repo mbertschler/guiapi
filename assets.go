@@ -9,34 +9,19 @@ import (
 	"github.com/mbertschler/guiapi/assets"
 )
 
-func NewBuildOptions(infile, outfile string) assets.BuildOptions {
-	return assets.BuildOptions{
-		Infile:    infile,
-		Outfile:   outfile,
-		Bundle:    true,
-		Minify:    true,
-		Sourcemap: true,
-		Log:       true,
-	}
-}
-
-func BuildOrUseBuiltAssets(options assets.BuildOptions, built fs.FS) (fs.FS, error) {
-	dir := filepath.Dir(options.Outfile)
+func (s *Server) BuildAssets() (fs.FS, error) {
+	dir := filepath.Dir(s.options.Assets.Outfile)
 
 	if assets.EsbuildAvailable() {
-		err := assets.BuildAssets(options)
+		err := assets.BuildAssets(s.options.Assets)
 		if err != nil {
 			log.Fatal(err)
 		}
 		return os.DirFS(dir), nil
 	}
 
-	if options.Log {
+	if s.options.Assets.Log {
 		log.Println("esbuild not available, using prebuilt assets")
 	}
-	return fs.Sub(built, dir)
-}
-
-func (s *Server) BuildAssets() error {
-	return nil
+	return fs.Sub(s.options.DistFS, dir)
 }

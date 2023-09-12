@@ -9,3 +9,12 @@ type BuildOptions struct {
 	Log         bool
 	EsbuildArgs []string
 }
+
+func DefaultBuildOptions() BuildOptions {
+	return BuildOptions{
+		Bundle:    true,
+		Minify:    true,
+		Sourcemap: true,
+		Log:       true,
+	}
+}

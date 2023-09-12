@@ -11,14 +11,16 @@ import (
 )
 
 type Server struct {
+	options      *Options
 	httpRouter   *httprouter.Router
 	pagesRouter  *httprouter.Router
 	actions      map[string]ActionFunc
 	streamRouter StreamRouter
 }
 
-func New(streamRouter StreamRouter) *Server {
+func New(options *Options, streamRouter StreamRouter) *Server {
 	s := &Server{
+		options:      options,
 		httpRouter:   httprouter.New(),
 		pagesRouter:  httprouter.New(),
 		actions:      map[string]ActionFunc{},
