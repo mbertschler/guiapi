@@ -11,6 +11,8 @@ class Stream {
     }
 
     subscribe = (data) => {
+        console.log("Stream.subscribe()", data)
+
         this.tries = 0
         if (this.open) {
             this.current = data

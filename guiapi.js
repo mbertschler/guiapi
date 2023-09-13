@@ -288,6 +288,10 @@ function setupHistory() {
         if (!s) {
             s = originalState
         }
+        if (!s) {
+            console.warn("no originalState", originalState, e)
+            return
+        }
         guiapiPage(s.url)
     })
 }

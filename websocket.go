@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	"time"
+	"math/rand"
 
 	"nhooyr.io/websocket"
 )
@@ -17,6 +17,7 @@ type websocketMessage struct {
 }
 
 func (s *Server) websocketHandler(c *PageCtx) {
+	streamID := rand.Intn(10000)
 	conn, err := websocket.Accept(c.Writer, c.Request, &websocket.AcceptOptions{
 		Subprotocols: []string{"guiapi"},
 	})
@@ -38,10 +39,10 @@ func (s *Server) websocketHandler(c *PageCtx) {
 	ch := make(chan *Response, 1)
 	defer close(ch)
 
-	id := time.Now().UnixMilli() % 1000
+	log.Println("start websocket", streamID)
 
 	go func() {
-		defer log.Println("exit websocket writer", id)
+		defer log.Println("exit websocket writer", streamID)
 		for {
 			select {
 			case <-ctx.Done():
@@ -53,7 +54,7 @@ func (s *Server) websocketHandler(c *PageCtx) {
 				return
 			case resp, ok := <-ch:
 				if !ok {
-					log.Println("websocket writer not ok", id)
+					log.Println("websocket writer not ok", streamID)
 					return
 				}
 				buf, err := json.Marshal(resp)
@@ -75,11 +76,15 @@ func (s *Server) websocketHandler(c *PageCtx) {
 	defer close(messages)
 
 	go func() {
-		defer log.Println("exit websocket reader", id)
+		defer log.Println("exit websocket reader", streamID)
 		for {
 			msgType, buf, err := conn.Read(ctx)
 			if err != nil {
-				log.Println("websocket read error:", err)
+				if websocket.CloseStatus(err) == websocket.StatusGoingAway {
+					log.Println("websocket going away")
+				} else {
+					log.Println("websocket read error:", err, "CloseStatus:", websocket.CloseStatus(err))
+				}
 				cancel()
 				return
 			}
@@ -90,14 +95,14 @@ func (s *Server) websocketHandler(c *PageCtx) {
 			select {
 			case messages <- buf:
 			case <-ctx.Done():
-				log.Println("websocket reader blocked", id)
+				log.Println("websocket reader blocked", streamID)
 			}
 		}
 	}()
 
 	var previousCancel context.CancelFunc
+	defer log.Println("exit websocketHandler", streamID)
 	for {
-		defer log.Println("exit websocket router", id)
 		select {
 		case <-ctx.Done():
 			return
@@ -106,7 +111,7 @@ func (s *Server) websocketHandler(c *PageCtx) {
 				previousCancel()
 			}
 			if !ok {
-				log.Println("websocket router not ok", id)
+				log.Println("websocket router not ok", streamID)
 				return
 			}
 			var msg websocketMessage
@@ -116,12 +121,13 @@ func (s *Server) websocketHandler(c *PageCtx) {
 				cancel()
 				break
 			}
+			log.Printf("websocket message %q %s", msg.Name, msg.Args)
 			subCtx, subCancel := context.WithCancel(ctx)
 			previousCancel = subCancel
 			go func() {
 				fn := s.streams[msg.Name]
 				if fn == nil {
-					log.Println("StreamRouter error: unknown stream", msg.Name)
+					log.Println("StreamRouter error: unknown stream", msg.Name, string(buf))
 					cancel()
 					return
 				}

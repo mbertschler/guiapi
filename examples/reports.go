@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/mbertschler/guiapi"
+	"github.com/mbertschler/guiapi/api"
 	"github.com/mbertschler/html"
 	"github.com/mbertschler/html/attr"
 )
@@ -201,7 +202,10 @@ type ReportsStream struct {
 }
 
 func (r *ReportsPage) WriteHTML(w io.Writer) error {
-	stream, err := json.Marshal(r.Stream)
+	stream, err := json.Marshal(api.Stream{
+		Name: "Reports",
+		Args: r.Stream,
+	})
 	if err != nil {
 		return err
 	}
