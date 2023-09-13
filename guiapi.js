@@ -121,7 +121,9 @@ export function handleResponse(r, callback) {
         }
     }
     if (r.Stream) {
-        handleStream(r.Stream)
+        for (var i = 0; i < r.Stream.length; i++) {
+            handleStream(r.Stream[i])
+        }
     }
     if (r.URL) {
         addPageToHistory(r.URL)

@@ -9,7 +9,12 @@ import (
 	"nhooyr.io/websocket"
 )
 
-type StreamRouter func(ctx context.Context, stream []byte, res chan<- *Response) error
+type StreamFunc func(ctx context.Context, args json.RawMessage, res chan<- *Response) error
+
+type websocketMessage struct {
+	Name string          `json:"name"`
+	Args json.RawMessage `json:"args"`
+}
 
 func (s *Server) websocketHandler(c *PageCtx) {
 	conn, err := websocket.Accept(c.Writer, c.Request, &websocket.AcceptOptions{
@@ -104,10 +109,23 @@ func (s *Server) websocketHandler(c *PageCtx) {
 				log.Println("websocket router not ok", id)
 				return
 			}
+			var msg websocketMessage
+			err := json.Unmarshal(buf, &msg)
+			if err != nil {
+				log.Println("json unmarshal error:", err)
+				cancel()
+				break
+			}
 			subCtx, subCancel := context.WithCancel(ctx)
 			previousCancel = subCancel
 			go func() {
-				err := s.streamRouter(subCtx, buf, ch)
+				fn := s.streams[msg.Name]
+				if fn == nil {
+					log.Println("StreamRouter error: unknown stream", msg.Name)
+					cancel()
+					return
+				}
+				err := fn(subCtx, msg.Args, ch)
 				if err != nil {
 					log.Println("StreamRouter error:", err)
 					cancel()

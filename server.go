@@ -11,23 +11,22 @@ import (
 )
 
 type Server struct {
-	options      *Options
-	httpRouter   *httprouter.Router
-	pagesRouter  *httprouter.Router
-	actions      map[string]ActionFunc
-	streamRouter StreamRouter
+	httpRouter  *httprouter.Router
+	pagesRouter *httprouter.Router
+	actions     map[string]ActionFunc
+	streams     map[string]StreamFunc
 }
 
-func New(options *Options, streamRouter StreamRouter) *Server {
+func New() *Server {
 	s := &Server{
-		options:      options,
-		httpRouter:   httprouter.New(),
-		pagesRouter:  httprouter.New(),
-		actions:      map[string]ActionFunc{},
-		streamRouter: streamRouter,
+		httpRouter:  httprouter.New(),
+		pagesRouter: httprouter.New(),
+		actions:     map[string]ActionFunc{},
+		streams:     map[string]StreamFunc{},
 	}
 	s.httpRouter.POST("/guiapi", s.withPageCtx(s.handle))
 	s.httpRouter.GET("/guiapi/ws", s.withPageCtx(s.websocketHandler))
+
 	return s
 }
 
@@ -121,4 +120,8 @@ func (s *Server) pageUpdate(path string, page PageFunc) {
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.httpRouter.ServeHTTP(w, r)
+}
+
+func (s *Server) AddStream(name string, fn StreamFunc) {
+	s.streams[name] = fn
 }

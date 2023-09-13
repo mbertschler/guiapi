@@ -25,7 +25,7 @@ class Stream {
     }
 
     connect = () => {
-        console.log("websocket connecting:", this.url)
+        console.log("websocket connecting:", this.url, "try:", this.tries)
         this.tries++
         const socket = new WebSocket(this.url, "guiapi")
         socket.onopen = this.onopen

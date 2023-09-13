@@ -186,6 +186,8 @@ func (r *Reports) Register(s *guiapi.Server) {
 	s.AddAction("Reports.Cancel", ContextAction(r.SessDB, r.Cancel))
 	s.AddAction("Reports.Refresh", ContextAction(r.SessDB, r.Refresh))
 	s.AddAction("Reports.SomeError", ContextAction(r.SessDB, r.SomeError))
+
+	s.AddStream("Reports", r.Stream)
 }
 
 type ReportsPage struct {
@@ -229,7 +231,7 @@ func (r *ReportsPage) WriteHTML(w io.Writer) error {
 func (r *ReportsPage) Update() (*guiapi.Response, error) {
 	out, err := html.RenderMinifiedString(r.Content)
 	res := guiapi.ReplaceElement("#reports", out)
-	res.Stream = r.Stream
+	res.AddStream("Reports", r.Stream)
 	return res, err
 }
 

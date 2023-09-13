@@ -25,3 +25,9 @@ type JSCall struct {
 	// Args as object, gets encoded by the called function
 	Args any `json:",omitempty"`
 }
+
+type Stream struct {
+	Name string // name of the stream to subscribe to
+	// Args as object, gets encoded by the called function
+	Args any `json:",omitempty"`
+}

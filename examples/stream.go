@@ -9,22 +9,22 @@ import (
 	"github.com/mbertschler/html"
 )
 
-func (r *Reports) StreamRouter(ctx context.Context, msg []byte, res chan<- *guiapi.Response) error {
+func (r *Reports) Stream(ctx context.Context, msg json.RawMessage, res chan<- *guiapi.Response) error {
 	var stream ReportsStream
 	err := json.Unmarshal(msg, &stream)
 	if err != nil {
 		return err
 	}
 	if stream.Overview {
-		return r.OverviewStream(ctx, res)
+		return r.overviewStream(ctx, res)
 	}
 	if stream.ID != "" {
-		return r.DetailStream(ctx, stream.ID, res)
+		return r.detailStream(ctx, stream.ID, res)
 	}
 	return nil
 }
 
-func (r *Reports) OverviewStream(ctx context.Context, results chan<- *guiapi.Response) error {
+func (r *Reports) overviewStream(ctx context.Context, results chan<- *guiapi.Response) error {
 	listener := r.DB.AddGlobalChangeListener(func(change ChangeType, report *Report) {
 		out, err := html.RenderMinifiedString(r.allReportsBlock())
 		res := guiapi.ReplaceElement("#all-reports", out)
@@ -39,7 +39,7 @@ func (r *Reports) OverviewStream(ctx context.Context, results chan<- *guiapi.Res
 	return nil
 }
 
-func (r *Reports) DetailStream(ctx context.Context, id string, results chan<- *guiapi.Response) error {
+func (r *Reports) detailStream(ctx context.Context, id string, results chan<- *guiapi.Response) error {
 	listener := r.DB.AddIDChangeListener(id, func(change ChangeType, report *Report) {
 		out, err := html.RenderMinifiedString(r.singleReportBlock(id))
 		res := guiapi.ReplaceElement("#single-report", out)

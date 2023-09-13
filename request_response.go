@@ -29,7 +29,7 @@ type Response struct {
 	HTML   []api.HTMLUpdate `json:",omitempty"` // DOM updates to apply
 	JS     []api.JSCall     `json:",omitempty"` // JS calls to execute
 	State  any              `json:",omitempty"` // State to pass back to the browser
-	Stream any              `json:",omitempty"` // Stream to subscribe to via websocket
+	Stream []api.Stream     `json:",omitempty"` // Stream to subscribe to via websocket
 }
 
 func (r *Response) AddJSCall(name string, args any) {
@@ -40,6 +40,19 @@ func (r *Response) AddJSCall(name string, args any) {
 }
 
 func JSCall(name string, args any) *Response {
+	r := &Response{}
+	r.AddJSCall(name, args)
+	return r
+}
+
+func (r *Response) AddStream(name string, args any) {
+	r.Stream = append(r.Stream, api.Stream{
+		Name: name,
+		Args: args,
+	})
+}
+
+func Stream(name string, args any) *Response {
 	r := &Response{}
 	r.AddJSCall(name, args)
 	return r
