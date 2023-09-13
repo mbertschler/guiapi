@@ -148,7 +148,11 @@ func (t *TodoList) RenderFullPage(page string) guiapi.PageFunc {
 		if err != nil {
 			return nil, err
 		}
-		return &TodoPage{Content: content}, nil
+		return &TodoPage{
+			Content: content,
+			State: TodoListState{
+				Page: page,
+			}}, nil
 	})
 }
 

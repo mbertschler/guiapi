@@ -3,44 +3,60 @@ package main
 import (
 	"embed"
 	"flag"
+	"io/fs"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/mbertschler/guiapi"
+	"github.com/mbertschler/guiapi/assets"
 )
 
 //go:embed dist/*
-var distEmbedFS embed.FS
+var prebuiltAssets embed.FS
 
-func setup() (*guiapi.Server, error) {
+func assetsFS() (fs.FS, error) {
+	if !assets.EsbuildAvailable() {
+		// in production, esbuild is not available
+		// and assets are compiled into the binary
+		assets, err := fs.Sub(prebuiltAssets, "dist")
+		if err != nil {
+			return nil, err
+		}
+		return assets, nil
+	}
+
+	build := assets.DefaultBuildOptions()
+	build.Infile = "js/main.js"
+	build.Outfile = "dist/bundle.js"
+	build.EsbuildArgs = []string{"--metafile=dist/meta.json"}
+
+	dir := filepath.Dir(build.Outfile)
+
+	err := assets.BuildAssets(build)
+	if err != nil {
+		return nil, err
+	}
+	return os.DirFS(dir), nil
+}
+
+func setupServer(assetsFS fs.FS) *guiapi.Server {
 	db := NewDB()
 
 	reports := NewReportsComponent(db)
 	counter := &Counter{DB: db}
 	todo := &TodoList{DB: db}
 
-	options := guiapi.DefaultOptions()
-	options.DistFS = distEmbedFS
-	options.Assets.Infile = "js/main.js"
-	options.Assets.Outfile = "dist/bundle.js"
-	options.Assets.EsbuildArgs = []string{"--metafile=dist/meta.json"}
+	server := guiapi.New()
 
-	// better struct options
-	server := guiapi.New(options, reports.StreamRouter)
-
-	distFS, err := server.BuildAssets()
-	if err != nil {
-		return nil, err
-	}
-
-	// move into guiapi?
-	server.AddFiles("/dist/", http.FS(distFS))
+	server.AddFiles("/dist/", http.FS(assetsFS))
 
 	reports.Register(server)
 	counter.Register(server)
 	todo.Register(server)
 
-	return server, nil
+	return server
 }
 
 func main() {
@@ -50,14 +66,17 @@ func main() {
 	flag.BoolVar(&exitAfterBuild, "build", false, "build assets and exit")
 	flag.Parse()
 
-	server, err := setup()
+	fs, err := assetsFS()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	if exitAfterBuild {
+		log.Println("built assets, exit after build flag provided")
 		return
 	}
+
+	server := setupServer(fs)
 
 	log.Println("listening on localhost:8000")
 	err = http.ListenAndServe("localhost:8000", server)
