@@ -1,4 +1,4 @@
-import { guiapi } from "guiapi"
+import guiapi from "guiapi"
 import "../css/reports.css"
 
 let isRefreshing = false
@@ -10,7 +10,7 @@ function onRefresh(event) {
 
     const spinner = document.getElementById("refresh-spinner")
     refreshStart(event, spinner)
-    guiapi("Reports.Refresh", null, () => {
+    guiapi.action("Reports.Refresh", null, () => {
         refreshDone(event, spinner)
     })
 }

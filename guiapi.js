@@ -26,7 +26,7 @@ export function debugPrinting(enable) {
     debugGuiapi = enable
 }
 
-export function guiapi(name, args, callback) {
+export function action(name, args, callback) {
     if (debugGuiapi) {
         console.log("guiapi action:", name, "args:", args, "state:", state)
     }
@@ -135,9 +135,6 @@ export function handleResponse(r, callback) {
 function hydrate() {
     var elements = document.querySelectorAll(".ga")
     for (var el of elements) {
-        if (el.dataset.action) {
-            hydrateAction(el)
-        }
         if (el.attributes.getNamedItem("ga-on")) {
             hydrateOn(el)
         }
@@ -148,24 +145,6 @@ function hydrate() {
             hydrateLink(el)
         }
     }
-}
-
-function hydrateAction(el) {
-    var action = el.dataset.action
-    var args = null
-    // still needed?
-    var variable = el.dataset.var
-    if (variable) {
-        args = window[variable]
-    }
-    var fn = callableFunctions[action]
-    if (fn) {
-        fn(el, args)
-    } else {
-        console.warn("function call not implemented :(", action, el)
-        console.log("during hydrating", elements.length, "elements", elements)
-    }
-    el.classList.remove("ga")
 }
 
 function hydrateOn(el) {
@@ -200,7 +179,7 @@ function hydrateOn(el) {
                     args[ele.name] = ele.value
                 }
             }
-            guiapi(action, args)
+            action(action, args)
             e.preventDefault()
             e.stopPropagation()
             return false
@@ -297,7 +276,7 @@ function setupHistory() {
 }
 
 export default {
-    guiapi,
+    action,
     setupGuiapi,
     registerFunctions,
     debugPrinting
