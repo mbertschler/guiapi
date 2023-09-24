@@ -157,7 +157,7 @@ function hydrateOn(el) {
         }
         el.addEventListener(eventType, callable)
     } else {
-        var action = el.attributes.getNamedItem("ga-action").value
+        var actionName = el.attributes.getNamedItem("ga-action").value
         var args = null
         if (el.attributes.getNamedItem("ga-args")) {
             args = el.attributes.getNamedItem("ga-args").value
@@ -179,7 +179,7 @@ function hydrateOn(el) {
                     args[ele.name] = ele.value
                 }
             }
-            action(action, args)
+            action(actionName, args)
             e.preventDefault()
             e.stopPropagation()
             return false
