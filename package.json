@@ -1,6 +1,6 @@
 {
   "name": "guiapi",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "guiapi is a package to build interactive multi page web applications",
   "main": "guiapi.js",
   "directories": {
