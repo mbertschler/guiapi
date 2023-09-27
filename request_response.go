@@ -15,7 +15,7 @@ type Request struct {
 	// Args as object, gets parsed by the called function
 	Args json.RawMessage `json:",omitempty"`
 	// State is can be passed back and forth between the server and browser.
-	// It is held in a Javascript variable, so there is one per browser tab.
+	// It is held in a JavaScript variable, so there is one per browser tab.
 	State json.RawMessage `json:",omitempty"`
 }
 

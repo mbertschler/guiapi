@@ -58,7 +58,7 @@ type Page interface {
 	WriteHTML(io.Writer) error
 }
 
-type PageUpdater interface {
+type UpdateablePage interface {
 	Page
 	Update() (*Response, error)
 }
@@ -96,7 +96,7 @@ func (s *Server) pageUpdate(path string, page PageFunc) {
 			http.Error(c.Writer, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
-		updater, ok := res.(PageUpdater)
+		updater, ok := res.(UpdateablePage)
 		if !ok {
 			err := fmt.Sprintf("page %q is not updateable", path)
 			log.Println(err)
@@ -120,6 +120,10 @@ func (s *Server) pageUpdate(path string, page PageFunc) {
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.httpRouter.ServeHTTP(w, r)
+}
+
+func (s *Server) Router() *httprouter.Router {
+	return s.httpRouter
 }
 
 func (s *Server) AddStream(name string, fn StreamFunc) {
