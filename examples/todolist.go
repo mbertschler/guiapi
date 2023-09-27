@@ -22,10 +22,10 @@ type Action struct {
 	State TodoListState
 }
 
-type ActionFunc[T any] func(c *Action, args *T) (*guiapi.Response, error)
+type ActionFunc[T any] func(c *Action, args *T) (*guiapi.Update, error)
 
 func ContextAction[T any](db *DB, fn ActionFunc[T]) guiapi.ActionFunc {
-	return func(c *guiapi.ActionCtx) (*guiapi.Response, error) {
+	return func(c *guiapi.ActionCtx) (*guiapi.Update, error) {
 		var input T
 		if c.Args != nil {
 			err := json.Unmarshal(c.Args, &input)
@@ -97,7 +97,7 @@ func (t *TodoPage) WriteHTML(w io.Writer) error {
 	return html.RenderMinified(w, block)
 }
 
-func (t *TodoPage) Update() (*guiapi.Response, error) {
+func (t *TodoPage) Update() (*guiapi.Update, error) {
 	out, err := html.RenderMinifiedString(t.Content)
 	if err != nil {
 		return nil, err
@@ -315,7 +315,7 @@ type NewTodoArgs struct {
 	Text string `json:"text"`
 }
 
-func (t *TodoList) NewTodo(ctx *Action, input *NewTodoArgs) (*guiapi.Response, error) {
+func (t *TodoList) NewTodo(ctx *Action, input *NewTodoArgs) (*guiapi.Update, error) {
 	return t.updateTodoList(ctx, func(props *TodoListProps, todos *StoredTodo) error {
 		var highestID int
 		for _, item := range todos.Items {
@@ -329,7 +329,7 @@ func (t *TodoList) NewTodo(ctx *Action, input *NewTodoArgs) (*guiapi.Response, e
 	})
 }
 
-func (t *TodoList) ToggleItem(ctx *Action, args *IDArgs) (*guiapi.Response, error) {
+func (t *TodoList) ToggleItem(ctx *Action, args *IDArgs) (*guiapi.Update, error) {
 	return t.updateTodoList(ctx, func(props *TodoListProps, todos *StoredTodo) error {
 		for i, item := range todos.Items {
 			if item.ID == args.ID {
@@ -340,7 +340,7 @@ func (t *TodoList) ToggleItem(ctx *Action, args *IDArgs) (*guiapi.Response, erro
 	})
 }
 
-func (t *TodoList) ToggleAll(ctx *Action, args *NoArgs) (*guiapi.Response, error) {
+func (t *TodoList) ToggleAll(ctx *Action, args *NoArgs) (*guiapi.Update, error) {
 	return t.updateTodoList(ctx, func(props *TodoListProps, todos *StoredTodo) error {
 		allDone := true
 		for _, item := range todos.Items {
@@ -357,7 +357,7 @@ func (t *TodoList) ToggleAll(ctx *Action, args *NoArgs) (*guiapi.Response, error
 	})
 }
 
-func (t *TodoList) DeleteItem(ctx *Action, args *IDArgs) (*guiapi.Response, error) {
+func (t *TodoList) DeleteItem(ctx *Action, args *IDArgs) (*guiapi.Update, error) {
 	return t.updateTodoList(ctx, func(props *TodoListProps, todos *StoredTodo) error {
 		var newItems []StoredTodoItem
 		for _, item := range todos.Items {
@@ -373,7 +373,7 @@ func (t *TodoList) DeleteItem(ctx *Action, args *IDArgs) (*guiapi.Response, erro
 
 type NoArgs struct{}
 
-func (t *TodoList) ClearCompleted(ctx *Action, _ *NoArgs) (*guiapi.Response, error) {
+func (t *TodoList) ClearCompleted(ctx *Action, _ *NoArgs) (*guiapi.Update, error) {
 	return t.updateTodoList(ctx, func(props *TodoListProps, todos *StoredTodo) error {
 		var newItems []StoredTodoItem
 		for _, item := range todos.Items {
@@ -391,7 +391,7 @@ type IDArgs struct {
 	ID int `json:"id"`
 }
 
-func (t *TodoList) EditItem(ctx *Action, args *IDArgs) (*guiapi.Response, error) {
+func (t *TodoList) EditItem(ctx *Action, args *IDArgs) (*guiapi.Update, error) {
 	return t.updateTodoList(ctx, func(props *TodoListProps, _ *StoredTodo) error {
 		props.EditItemID = args.ID
 		return nil
@@ -403,7 +403,7 @@ type UpdateItemArgs struct {
 	Text string `json:"text"`
 }
 
-func (t *TodoList) UpdateItem(ctx *Action, args *UpdateItemArgs) (*guiapi.Response, error) {
+func (t *TodoList) UpdateItem(ctx *Action, args *UpdateItemArgs) (*guiapi.Update, error) {
 	return t.updateTodoList(ctx, func(props *TodoListProps, todos *StoredTodo) error {
 		for i, item := range todos.Items {
 			if item.ID == args.ID {
@@ -414,7 +414,7 @@ func (t *TodoList) UpdateItem(ctx *Action, args *UpdateItemArgs) (*guiapi.Respon
 	})
 }
 
-func (t *TodoList) updateTodoList(ctx *Action, fn func(*TodoListProps, *StoredTodo) error) (*guiapi.Response, error) {
+func (t *TodoList) updateTodoList(ctx *Action, fn func(*TodoListProps, *StoredTodo) error) (*guiapi.Update, error) {
 	props, err := t.todoListProps(ctx.Sess, ctx.State.Page)
 	if err != nil {
 		return nil, err

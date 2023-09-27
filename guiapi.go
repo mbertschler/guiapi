@@ -10,9 +10,22 @@ import (
 	"github.com/mbertschler/guiapi/api"
 )
 
+// action is the sent body of a GUI API call
+type action struct {
+	// Name of the action that is called
+	Name string `json:",omitempty"`
+	// URL is the URL of the next page that should be loaded via guiapi.
+	URL string `json:",omitempty"`
+	// Args as object, gets parsed by the called function
+	Args json.RawMessage `json:",omitempty"`
+	// State is can be passed back and forth between the server and browser.
+	// It is held in a JavaScript variable, so there is one per browser tab.
+	State json.RawMessage `json:",omitempty"`
+}
+
 // handle handles HTTP requests to the GUI API.
 func (s *Server) handle(c *PageCtx) {
-	var req Request
+	var req action
 	err := json.NewDecoder(c.Request.Body).Decode(&req)
 	if err != nil {
 		log.Println("guiapi: error decoding request:", err)
@@ -30,8 +43,8 @@ func (s *Server) handle(c *PageCtx) {
 	}
 }
 
-func (s *Server) process(p *PageCtx, req *Request) *Response {
-	var res = Response{
+func (s *Server) process(p *PageCtx, req *action) *Update {
+	var res = Update{
 		Name: req.Name,
 	}
 
@@ -66,7 +79,7 @@ func (s *Server) process(p *PageCtx, req *Request) *Response {
 	return &res
 }
 
-func (s *Server) processURL(c *PageCtx, req *Request) {
+func (s *Server) processURL(c *PageCtx, req *action) {
 	url, err := url.Parse(req.URL)
 	if err != nil {
 		log.Println("guiapi: error parsing url:", err)
@@ -84,6 +97,9 @@ func (s *Server) processURL(c *PageCtx, req *Request) {
 	handle(c.Writer, c.Request, params)
 }
 
+// ActionCtx is the context that is passed to an ActionFunc.
+// It extends the Request and Writer from a typical HTTP request handler with
+// State and Args fields from the Action call that were sent from the browser.
 type ActionCtx struct {
 	Writer  http.ResponseWriter
 	Request *http.Request
@@ -91,4 +107,7 @@ type ActionCtx struct {
 	Args    json.RawMessage
 }
 
-type ActionFunc func(c *ActionCtx) (*Response, error)
+// ActionFunc is the action handler function that should return an Update in
+// response to the call from the client. ActionFuncs are registered with the
+// Server using the AddAction() function.
+type ActionFunc func(c *ActionCtx) (*Update, error)

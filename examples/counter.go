@@ -46,7 +46,7 @@ func (c *CounterPage) WriteHTML(w io.Writer) error {
 	return html.RenderMinified(w, block)
 }
 
-func (c *CounterPage) Update() (*guiapi.Response, error) {
+func (c *CounterPage) Update() (*guiapi.Update, error) {
 	out, err := html.RenderMinifiedString(c.Content)
 	return guiapi.ReplaceContent("#page", out), err
 }
@@ -80,7 +80,7 @@ func (c *Counter) RenderBlock(ctx *guiapi.PageCtx) (html.Block, error) {
 	return block, nil
 }
 
-func (c *Counter) Increase(ctx *guiapi.ActionCtx) (*guiapi.Response, error) {
+func (c *Counter) Increase(ctx *guiapi.ActionCtx) (*guiapi.Update, error) {
 	sess := c.DB.Session(ctx.Writer, ctx.Request)
 	counter, err := c.DB.GetCounter(sess.ID)
 	if err != nil {
@@ -96,7 +96,7 @@ func (c *Counter) Increase(ctx *guiapi.ActionCtx) (*guiapi.Response, error) {
 	return guiapi.ReplaceContent("#count", out), err
 }
 
-func (c *Counter) Decrease(ctx *guiapi.ActionCtx) (*guiapi.Response, error) {
+func (c *Counter) Decrease(ctx *guiapi.ActionCtx) (*guiapi.Update, error) {
 	sess := c.DB.Session(ctx.Writer, ctx.Request)
 	counter, err := c.DB.GetCounter(sess.ID)
 	if err != nil {

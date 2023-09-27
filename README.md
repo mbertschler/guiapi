@@ -17,7 +17,7 @@ page reload for every user action and a typical modern single page app that
 requires a REST API and lots of JavaScript to render the different HTML views.
 
 You should give this framework a try, if you agree with the following principles
-that `guiapi` is built on:
+that guiapi is built on:
 
 - Rendering HTML should not require a REST API
 - Most web apps should be multi page apps out of the box
@@ -58,7 +58,7 @@ content is still updated as if the page was visited directly.
 ### Actions
 
 Actions are events that are sent from the browser to the server. They can either be
-originating from a HTML element with `ga-on` attribute, or from the guiapi `action`
+originating from a HTML element with `ga-on` attribute, or from the guiapi `action()`
 JavaScript function. Actions consist of a name and optional arguments. These
 actions are transferred as JSON via a POST request to the endpoint that is typically
 called `/guiapi`. The response to an Action is an Update.
@@ -98,8 +98,8 @@ closed. This is not done via a HTTP request, but via a WebSocket connection. Sim
 to actions, a Stream also consists of a name and arguments.
 
 > [!WARNING]  
-> While the other concepts of guiapi (Pages, Actions, Updates) have proven useful
-> web applications since 2018, Streams are a new concept for server side updates and
+> While the other concepts of guiapi (Pages, Actions, Updates) have been proven useful
+> in web applications since 2018, Streams are a new concept for server sent updates and
 > should be considered experimental. They might change significantly in the future.
 
 # API Documentation
@@ -231,12 +231,12 @@ receives an update from the server. This can be useful during development.
 
 ## Examples
 
-Go to `./examples` and running them with `go run .` will start a webserver at
-localhost:8000.
+Go to [`./examples`](./examples/) and start the web server with `go run .` to access
+the 3 examples with your web browser at localhost:8000.
 
-It contains 3 examples:
+The 3 examples are:
 
-- `/` is a guiapi implentation of [TodoMVC](https://todomvc.com/)
+- `/` contains a guiapi implentation of [TodoMVC](https://todomvc.com/)
 - `/counter` is a simple counter that can be increased and decreased
 - `/reports` is a demonstrates streams by updating the page from the server
 

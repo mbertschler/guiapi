@@ -9,7 +9,7 @@ import (
 	"github.com/mbertschler/html"
 )
 
-func (r *Reports) Stream(ctx context.Context, msg json.RawMessage, res chan<- *guiapi.Response) error {
+func (r *Reports) Stream(ctx context.Context, msg json.RawMessage, res chan<- *guiapi.Update) error {
 	var stream ReportsStream
 	err := json.Unmarshal(msg, &stream)
 	if err != nil {
@@ -24,7 +24,7 @@ func (r *Reports) Stream(ctx context.Context, msg json.RawMessage, res chan<- *g
 	return nil
 }
 
-func (r *Reports) overviewStream(ctx context.Context, results chan<- *guiapi.Response) error {
+func (r *Reports) overviewStream(ctx context.Context, results chan<- *guiapi.Update) error {
 	listener := r.DB.AddGlobalChangeListener(func(change ChangeType, report *Report) {
 		out, err := html.RenderMinifiedString(r.allReportsBlock())
 		res := guiapi.ReplaceElement("#all-reports", out)
@@ -39,7 +39,7 @@ func (r *Reports) overviewStream(ctx context.Context, results chan<- *guiapi.Res
 	return nil
 }
 
-func (r *Reports) detailStream(ctx context.Context, id string, results chan<- *guiapi.Response) error {
+func (r *Reports) detailStream(ctx context.Context, id string, results chan<- *guiapi.Update) error {
 	listener := r.DB.AddIDChangeListener(id, func(change ChangeType, report *Report) {
 		out, err := html.RenderMinifiedString(r.singleReportBlock(id))
 		res := guiapi.ReplaceElement("#single-report", out)

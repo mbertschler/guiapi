@@ -9,7 +9,13 @@ import (
 	"nhooyr.io/websocket"
 )
 
-type StreamFunc func(ctx context.Context, args json.RawMessage, res chan<- *Response) error
+// StreamFunc is the type of a stream handler function. The initial arguments
+// from the client side are passed as JSON in args. Any time an update is
+// ready to be sent, it needs to be sent to the res channel. The stream can
+// be closed by returning from the function. If the client side closes the
+// connection, the context will be canceled. Because of this it is important
+// to check ctx.Done() regularly.
+type StreamFunc func(ctx context.Context, args json.RawMessage, res chan<- *Update) error
 
 type websocketMessage struct {
 	Name string          `json:"name"`
@@ -36,7 +42,7 @@ func (s *Server) websocketHandler(c *PageCtx) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	ch := make(chan *Response, 1)
+	ch := make(chan *Update, 1)
 	defer close(ch)
 
 	log.Println("start websocket", streamID)

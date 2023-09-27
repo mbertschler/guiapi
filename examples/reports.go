@@ -232,7 +232,7 @@ func (r *ReportsPage) WriteHTML(w io.Writer) error {
 	return html.RenderMinified(w, block)
 }
 
-func (r *ReportsPage) Update() (*guiapi.Response, error) {
+func (r *ReportsPage) Update() (*guiapi.Update, error) {
 	out, err := html.RenderMinifiedString(r.Content)
 	res := guiapi.ReplaceElement("#reports", out)
 	res.AddStream("Reports", r.Stream)
@@ -322,7 +322,7 @@ type ReportsArgs struct {
 	ID string `json:"id"`
 }
 
-func (r *Reports) Start(ctx *Action, args *ReportsArgs) (*guiapi.Response, error) {
+func (r *Reports) Start(ctx *Action, args *ReportsArgs) (*guiapi.Update, error) {
 	report := &Report{
 		ID:      args.ID,
 		Started: time.Now(),
@@ -354,7 +354,7 @@ func (r *Reports) Start(ctx *Action, args *ReportsArgs) (*guiapi.Response, error
 	return update, err
 }
 
-func (r *Reports) Cancel(ctx *Action, args *ReportsArgs) (*guiapi.Response, error) {
+func (r *Reports) Cancel(ctx *Action, args *ReportsArgs) (*guiapi.Update, error) {
 	err := r.DB.Transaction(func() error {
 		report := r.DB.Get(args.ID)
 		if report.Status == ReportStatusStarted {
@@ -369,12 +369,12 @@ func (r *Reports) Cancel(ctx *Action, args *ReportsArgs) (*guiapi.Response, erro
 	return guiapi.ReplaceElement("#all-reports", out), err
 }
 
-func (r *Reports) Refresh(ctx *Action, args *NoArgs) (*guiapi.Response, error) {
+func (r *Reports) Refresh(ctx *Action, args *NoArgs) (*guiapi.Update, error) {
 	time.Sleep(2 * time.Second)
 	out, err := html.RenderMinifiedString(r.allReportsBlock())
 	return guiapi.ReplaceElement("#all-reports", out), err
 }
 
-func (r *Reports) SomeError(ctx *Action, args *NoArgs) (*guiapi.Response, error) {
+func (r *Reports) SomeError(ctx *Action, args *NoArgs) (*guiapi.Update, error) {
 	return nil, errors.New("something bad happened (not really)")
 }
